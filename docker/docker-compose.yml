@@ -1,0 +1,30 @@
+version: '3'
+services:
+  web:
+    build: ./app
+  mysql:
+    image: mysql:5.7.23
+    volumes:
+      - mysqldata:/var/lib/mysql/
+    environment:
+      MYSQL_DATABASE: flask_api
+      MYSQL_USER: flask
+      MYSQL_PASSWORD: flasksql
+      MYSQL_ROOT_PASSWORD: rootsql
+    networks:
+      - default
+  phpmyadmin:
+    image:  phpmyadmin/phpmyadmin:4.8
+    depends_on:
+      - mysql
+    ports:
+      - "8000:80"
+    environment:
+      MYSQL_USER: flask
+      MYSQL_PASSWORD: flasksql
+      MYSQL_ROOT_PASSWORD: rootsql
+      PMA_HOST: mysql
+    networks:
+      - default
+volumes:
+    mysqldata:
