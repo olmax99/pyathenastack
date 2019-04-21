@@ -23,7 +23,7 @@ def add_user():
 
 
 # endpoint to show all users
-@app.route("/api/user", methods=["GET"])
+@app.route("/api/users", methods=["GET"])
 def get_user():
     all_users = User.query.all()
     result = users_schema.dump(all_users)
