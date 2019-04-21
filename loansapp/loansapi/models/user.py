@@ -1,4 +1,4 @@
-from app.main import db, ma
+from loansapi.api import db, ma
 
 
 class User(db.Model):

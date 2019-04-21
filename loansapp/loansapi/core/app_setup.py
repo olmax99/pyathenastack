@@ -1,6 +1,6 @@
 import os
 
-from app.main import app
+from loansapi.api import app
 from flask import send_file, render_template
 
 

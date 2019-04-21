@@ -1,6 +1,6 @@
 from flask import jsonify, request
-from app.main import app, db
-from app.models.user import User, UserSchema
+from loansapi.api import app, db
+from loansapi.models.user import User, UserSchema
 
 
 user_schema = UserSchema()

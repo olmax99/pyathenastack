@@ -121,7 +121,7 @@ $ pipenv install
 $ pipenv shell
 $ python
 
->>> from app.main import db, ma
+>>> from loansapi.api import db, ma
 >>> from app.models import user
 >>> db.create_all()
 >>> db.session.commit()

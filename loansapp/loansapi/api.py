@@ -14,10 +14,10 @@ db = SQLAlchemy(app)
 ma = Marshmallow(app)
 
 # imports all pre-defined landing paths
-from app.core import app_setup
+from loansapi.core import app_setup
 
 # imports all api endpoints
-from app.api import api
+from loansapi.apicalls import apicalls
 
 
 
