@@ -11,6 +11,7 @@ flask-marshmallow = "*"
 marshmallow-sqlalchemy = "*"
 connexion = {extras = ["swagger-ui"],version = "*"}
 pymysql = "*"
+flask-restplus = "*"
 
 [requires]
 python_version = "3.7"
