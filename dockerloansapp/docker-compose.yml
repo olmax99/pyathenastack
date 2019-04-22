@@ -2,29 +2,38 @@ version: '3'
 services:
   web:
     build: ./app
-  mysql:
-    image: mysql:5.7.23
+  postgres:
+    image: postgres:11.2
+    ports:
+      - "5432:5432"
     volumes:
-      - mysqldata:/var/lib/mysql/
+      - postgresdata:/var/lib/postgres/data
     environment:
-      MYSQL_DATABASE: flask_api
-      MYSQL_USER: flask
-      MYSQL_PASSWORD: flasksql
-      MYSQL_ROOT_PASSWORD: rootsql
+      POSTGRES_DB: flask_api
+      POSTGRES_USER: flask
+      POSTGRES_PASSWORD: flaskdb
     networks:
       - default
-  phpmyadmin:
-    image:  phpmyadmin/phpmyadmin:4.8
+  testdb:
+    image: postgres:11.2
+    ports:
+      - "5444:5432"
+    environment:
+      POSTGRES_DB: test_api
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: test123
+    networks:
+      - default
+  pgadmin:
+    image:  dpage/pgadmin4
     depends_on:
-      - mysql
+      - postgres
     ports:
       - "8000:80"
     environment:
-      MYSQL_USER: flask
-      MYSQL_PASSWORD: flasksql
-      MYSQL_ROOT_PASSWORD: rootsql
-      PMA_HOST: mysql
+      PGADMIN_DEFAULT_EMAIL: pgadmin4@pgadmin.org
+      PGADMIN_DEFAULT_PASSWORD: pgadmin
     networks:
       - default
 volumes:
-    mysqldata:
+    postgresdata:

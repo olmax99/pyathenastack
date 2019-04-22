@@ -5,7 +5,7 @@ from flask_marshmallow import Marshmallow
 # Create the Connexion application instance
 app = Flask(__name__)
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://flask:flasksql@mysql/flask_api'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql+psycopg2://flask:flaskdb@postgres/flask_api'
 # makes sure that all changes to the db are committed after each HTTP request
 app.config['SQLALCHEMY_COMMIT_ON_TEARDOWN'] = True
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
