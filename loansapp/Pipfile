@@ -11,8 +11,6 @@ flask-marshmallow = "*"
 marshmallow-sqlalchemy = "*"
 connexion = {extras = ["swagger-ui"],version = "*"}
 pymysql = "*"
-psycopg2 = "==2.8"
-psycopg2-binary = "*"
 
 [requires]
 python_version = "3.7"
