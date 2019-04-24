@@ -61,15 +61,14 @@ validation/serialization libraries than restplus ( intends to use it in the futu
 # @api.route('/loans')
 class AllLoans(Resource):
     def get(self):
-        # loans = AllLoans
+        from loansapi.database import db_session
         # STEP 1: Return query object through sqlalchemy
-        loan = Payments.query.filter(Payments.loan_id == 'xqd20166231').first()
+        loan = Payments.return_by_id('xqd20166231')
 
         # STEP 2: Apply appropriate schema
-
         # STEP 3: dump (serialize)
         # return schema.dump(loan)
-        return str(loan)
+        return loan.json()
 
 
 # # @api.route('/loan/<string:loan_id>')

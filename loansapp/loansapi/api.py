@@ -3,12 +3,14 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_marshmallow import Marshmallow
 from flask_restplus import Api
 
+from loansapi.database import db_session
+from loansapi.database import init_db
+
 from loansapi.apis.resources.payments import AllLoans
 
-# Load the resources
-# from loansapi.apis.ns_loans import api
 # Enable session.query created with pure sqlalchemy
-from loansapi.database import db_session
+
+
 
 
 """
@@ -40,13 +42,11 @@ from loansapi.core import app_setup
 
 api.add_resource(AllLoans, '/api/loans')
 
-
 # -------------------------------------------
 #   CREATE DB
 # -------------------------------------------
-
-from loansapi import database
-database.init_db()
+# TODO: Initialize db depending on testing mode or development
+init_db()
 
 # # flask_sqlalchemy can be used optionally to pure sqlalchemy
 # # It offers Flask optimization (vaguely described) and convenience classes,

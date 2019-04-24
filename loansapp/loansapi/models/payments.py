@@ -51,6 +51,13 @@ class Payments(Base):
     def __repr__(self):
         return f'<Loan Payment with id {self.loan_id}>'
 
+    def json(self):
+        return {'loan_id': self.loan_id, 'status': self.status}
+
+    @classmethod
+    def return_by_id(cls, loan):
+        return cls.query.filter(cls.loan_id == loan).first()
+
 
 # # create schemas according to request
 # class AllLoansSchema(ma.Schema):
