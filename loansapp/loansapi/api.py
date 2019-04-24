@@ -1,7 +1,7 @@
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_marshmallow import Marshmallow
-from flask_restplus import api
+from flask_restplus import Api
 
 # Load the resources
 # from loansapi.apis.ns_loans import api
@@ -14,6 +14,9 @@ RESTPlus is utilized for two purposes only:
     2. Swagger documentation
 
 """
+
+api = Api()
+
 app = Flask(__name__)
 
 # TODO: Replace password in docker and here with secret.ini file logic
@@ -33,14 +36,17 @@ ma = Marshmallow(app)
 from loansapi.core import app_setup
 
 
-# To use SQLAlchemy in a declarative way with your application,
-# Flask will automatically remove database sessions at the end of the request or
-# when the application shuts down.
-@app.teardown_appcontext
-def shutdown_session():
-    db_session.remove()
-
-
 api.init_app(app)
+
+# TODO: Teardown is triggering crash
+# # To use SQLAlchemy in a declarative way with your application,
+# # Flask will automatically remove database sessions at the end of the request or
+# # when the application shuts down.
+# @app.teardown_appcontext
+# def shutdown_session():
+#     db_session.remove()
+
+
+
 
 
