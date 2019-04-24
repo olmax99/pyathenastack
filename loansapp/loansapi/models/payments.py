@@ -2,7 +2,7 @@ from sqlalchemy import Column, Integer, String, Date, DateTime
 from sqlalchemy.orm import relationship
 
 from loansapi.database import Base
-from loansapi.api import ma
+# from loansapi.api import db
 
 
 # TODO: How to create Models based on existing database?
@@ -29,7 +29,7 @@ class Payments(Base):
     age = Column(Integer)
     education = Column(String)
     gender = Column(String)
-    loan_cat = relationship("Categories", backref="payments", order_by="Categories.id")
+    # loan_cat = relationship("Categories", backref="payments", order_by="Categories.cat_id")
 
     def __init__(self, loan_id=None, status=None, principal=None,
                  terms=None, effective_date=None, due_date=None,
@@ -52,7 +52,7 @@ class Payments(Base):
         return f'<Loan Payment with id {self.loan_id}>'
 
 
-# create schemas according to request
-class AllLoansSchema(ma.Schema):
-    class Meta:
-        fields = ('loan_id', 'loan_status')
+# # create schemas according to request
+# class AllLoansSchema(ma.Schema):
+#     class Meta:
+#         fields = ('loan_id', 'loan_status')

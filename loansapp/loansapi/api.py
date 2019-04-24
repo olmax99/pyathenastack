@@ -3,10 +3,13 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_marshmallow import Marshmallow
 from flask_restplus import Api
 
+from loansapi.apis.resources.payments import AllLoans
+
 # Load the resources
 # from loansapi.apis.ns_loans import api
 # Enable session.query created with pure sqlalchemy
 from loansapi.database import db_session
+
 
 """
 RESTPlus is utilized for two purposes only:    
@@ -14,9 +17,9 @@ RESTPlus is utilized for two purposes only:
     2. Swagger documentation
 
 """
-
-api = Api()
-
+# -------------------------------------------
+#   INITIALIZE FLASK
+# -------------------------------------------
 app = Flask(__name__)
 
 # TODO: Replace password in docker and here with secret.ini file logic
@@ -26,25 +29,43 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql+psycopg2://flask:flaskdb@pos
 app.config['SQLALCHEMY_COMMIT_ON_TEARDOWN'] = True
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# flask_sqlalchemy can be used optionally to pure sqlalchemy
-# It offers Flask optimization (vaguely described) and convenience classes,
-# e.g. query paginator,
-db = SQLAlchemy(app)
-ma = Marshmallow(app)
+api = Api(app)
+
+# -------------------------------------------
+#   LOAD STATICS AND RESOURCES
+# -------------------------------------------
 
 # imports all pre-defined landing paths
 from loansapi.core import app_setup
 
+api.add_resource(AllLoans, '/api/loans')
 
-api.init_app(app)
 
-# TODO: Teardown is triggering crash
-# # To use SQLAlchemy in a declarative way with your application,
-# # Flask will automatically remove database sessions at the end of the request or
-# # when the application shuts down.
-# @app.teardown_appcontext
-# def shutdown_session():
-#     db_session.remove()
+# -------------------------------------------
+#   CREATE DB
+# -------------------------------------------
+
+from loansapi import database
+database.init_db()
+
+# # flask_sqlalchemy can be used optionally to pure sqlalchemy
+# # It offers Flask optimization (vaguely described) and convenience classes,
+# # e.g. query paginator,
+# db = SQLAlchemy(app)
+# ma = Marshmallow(app)
+
+
+# To use SQLAlchemy in a declarative way with your application,
+# Flask will automatically remove database sessions at the end of the request or
+# when the application shuts down.
+@app.teardown_appcontext
+def shutdown_session(exception=None):
+    db_session.remove()
+
+
+
+
+
 
 
 

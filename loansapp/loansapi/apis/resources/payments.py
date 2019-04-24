@@ -1,8 +1,9 @@
 from flask_restplus import Resource
-from loansapi.api import api
+# from loansapi.api import api
 
+from loansapi.database import db_session
 from loansapi.models.payments import Payments
-from loansapi.models.payments import AllLoansSchema
+# from loansapi.models.payments import AllLoansSchema
 
 """
 A namespace module contains response serializers. CRUD resource declarations should 
@@ -53,28 +54,31 @@ validation/serialization libraries than restplus ( intends to use it in the futu
 #   to remove it at the end of the request
 # -----------------------------------------------------
 
+# from loansapi.database import init_db
+# init_db()
 
-@api.route('/loans')
+
+# @api.route('/loans')
 class AllLoans(Resource):
     def get(self):
+        # loans = AllLoans
         # STEP 1: Return query object through sqlalchemy
-        loan = Payments.query.all()
+        loan = Payments.query.filter(Payments.loan_id == 'xqd20166231').first()
 
         # STEP 2: Apply appropriate schema
-        schema = AllLoansSchema()
 
         # STEP 3: dump (serialize)
-        return schema.dump(loan)
-        # return {'loans': []}
+        # return schema.dump(loan)
+        return str(loan)
 
 
-@api.route('/loan/<string:loan_id>')
-class DetailLoan(Resource):
-    def get(self, loan_id):
-        # return all loan data
-        # ensure that category mapping is returned as well
-        return {'loan': {'loan_id': loan_id,
-                         'loan_type': 2}}
+# # @api.route('/loan/<string:loan_id>')
+# class DetailLoan(Resource):
+#     def get(self, loan_id):
+#         # return all loan data
+#         # ensure that category mapping is returned as well
+#         return {'loan': {'loan_id': loan_id,
+#                          'loan_type': 2}}
 
 # What is the difference between flask_restplus models and marshmallow?
 # * flask_restplus models are meant to be input validation models and output serializers.
