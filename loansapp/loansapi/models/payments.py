@@ -1,8 +1,9 @@
-from sqlalchemy import Column, Integer, String, Date, DateTime
+from sqlalchemy import Column, Integer, String, Date, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 
 from loansapi.database import Base
-# from loansapi.api import db
+# NOTE: This is mistakenly flagged as unreferenced by PyCharm
+from loansapi.models.categories import Categories
 
 
 # TODO: How to create Models based on existing database?
@@ -15,7 +16,6 @@ from loansapi.database import Base
 
 # The Model declarative base class behaves like a regular Python class but has
 # a query attribute attached that can be used to query the model.
-# (Model and BaseQuery)
 class Payments(Base):
     __tablename__ = 'payments'
     loan_id = Column(String(50), primary_key=True)
@@ -29,6 +29,9 @@ class Payments(Base):
     age = Column(Integer)
     education = Column(String)
     gender = Column(String)
+
+    loan_cat_id = Column(ForeignKey('categories.category_id'))
+    categories = relationship('Categories')
     # loan_cat = relationship("Categories", backref="payments", order_by="Categories.cat_id")
 
     def __init__(self, loan_id=None, status=None, principal=None,
@@ -52,7 +55,7 @@ class Payments(Base):
         return f'<Loan Payment with id {self.loan_id}>'
 
     def json(self):
-        return {'loan_id': self.loan_id, 'status': self.status}
+        return {'loan_id': self.loan_id, 'status': self.status, 'loan_cat': self.categories.loan_type}
 
     @classmethod
     def return_by_id(cls, loan):

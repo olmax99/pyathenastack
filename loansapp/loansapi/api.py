@@ -1,17 +1,12 @@
 from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
-from flask_marshmallow import Marshmallow
+# from flask_sqlalchemy import SQLAlchemy
+# from flask_marshmallow import Marshmallow
 from flask_restplus import Api
-
+# Enable session.query created with pure sqlalchemy
 from loansapi.database import db_session
 from loansapi.database import init_db
 
 from loansapi.apis.resources.payments import AllLoans
-
-# Enable session.query created with pure sqlalchemy
-
-
-
 
 """
 RESTPlus is utilized for two purposes only:    
@@ -36,7 +31,6 @@ api = Api(app)
 # -------------------------------------------
 #   LOAD STATICS AND RESOURCES
 # -------------------------------------------
-
 # imports all pre-defined landing paths
 from loansapi.core import app_setup
 
