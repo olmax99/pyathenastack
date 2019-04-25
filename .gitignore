@@ -12,6 +12,7 @@ tags
 vendor.tags
 .bundle
 *.kate-swp
+*.ini
 
 # Distribution / packaging
 .Python
@@ -76,6 +77,7 @@ ipython_config.py
 
 # Environments
 .env
+.env.override
 .venv
 env/
 venv/

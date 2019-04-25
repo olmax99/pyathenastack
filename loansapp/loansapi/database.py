@@ -1,6 +1,8 @@
+import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
+from loansapi.core.config_parser import read_config
 
 """
 This is a declarative approach. The Models are being built on pre-existing
@@ -9,8 +11,15 @@ database tables.
 
 """
 
+app_mode = os.environ['RUN_MODE']
+engine_uri = ''.join(
+    ('postgresql://',
+     read_config(app_mode)['db_user'], ':',
+     read_config(app_mode)['db_passwd'], '@',
+     read_config(app_mode)['db_host'], '/',
+     read_config(app_mode)['db_name']))
 
-engine = create_engine("postgresql://flask:flaskdb@postgres/flask_api")
+engine = create_engine(engine_uri)
 # Provides scoped management of :class:`.Session` objects.
 # linking the scope of a Session with that of a web request
 db_session = scoped_session(sessionmaker(autocommit=False,
