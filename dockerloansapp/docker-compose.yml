@@ -9,9 +9,9 @@ services:
     volumes:
       - postgresdata:/var/lib/postgres/data
     environment:
-      POSTGRES_DB: flask_api
-      POSTGRES_USER: flask
-      POSTGRES_PASSWORD: flaskdb
+      POSTGRES_DB: "${DEV_DB}"
+      POSTGRES_USER: "${DEV_USER}"
+      POSTGRES_PASSWORD: "${DEV_PASSWORD}"
     networks:
       - default
   testdb:
@@ -19,9 +19,9 @@ services:
     ports:
       - "5444:5432"
     environment:
-      POSTGRES_DB: test_api
-      POSTGRES_USER: test
-      POSTGRES_PASSWORD: test123
+      POSTGRES_DB: "${TEST_DB}"
+      POSTGRES_USER: "${TEST_USER}"
+      POSTGRES_PASSWORD: "${TEST_PASSWORD}"
     networks:
       - default
   pgadmin:
