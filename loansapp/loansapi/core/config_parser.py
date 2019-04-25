@@ -4,12 +4,13 @@ import configparser
 
 def read_config(mode='DEV'):
     parser = configparser.ConfigParser()
-    project_path = pathlib.Path(__file__).parents[1]
+    project_path = pathlib.Path(__file__).parents[2]
     config_file = os.path.join(project_path, '.config.ini')
     if os.path.isfile(config_file):
         try:
             parser.read(config_file)
-            print(config_section_map(parser, mode))
+            # print(config_section_map(parser, mode))
+            return config_section_map(parser, mode)
         except configparser.ParsingError as e:
             print(e)
     else:
@@ -28,4 +29,4 @@ def config_section_map(parser, section):
     return dict1
 
 
-read_config()
+# read_config()

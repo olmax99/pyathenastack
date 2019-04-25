@@ -6,11 +6,13 @@ from loansapi.core.config_parser import read_config
 # Create the Connexion application instance
 app = Flask(__name__)
 
-app.config['SQLALCHEMY_DATABASE_URI'] = ''.join(
+database_uri = ''.join(
     ('postgresql+psycopg2://',
-     read_config()['db_user'], ':', 
+     read_config()['db_user'], ':',
      read_config()['db_passwd'], '@postgres/',
      read_config()['db_name']))
+
+app.config['SQLALCHEMY_DATABASE_URI'] = database_uri
 # makes sure that all changes to the db are committed after each HTTP request
 app.config['SQLALCHEMY_COMMIT_ON_TEARDOWN'] = True
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
