@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, String, Date, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 
+from loansapi import database
 from loansapi.database import Base
 # NOTE: This is mistakenly flagged as unreferenced by PyCharm
 from loansapi.models.categories import Categories
@@ -61,6 +62,15 @@ class Payments(Base):
     def return_by_id(cls, loan):
         return cls.query.filter(cls.loan_id == loan).first()
 
+    @classmethod
+    def save_to_db(cls, pay_object):
+        database.db_session.add(pay_object)
+        database.db_session.commit()
+
+    @classmethod
+    def delete_from_db(cls, pay_object):
+        database.db_session.delete(pay_object)
+        database.db_session.commit()
 
 # # create schemas according to request
 # class AllLoansSchema(ma.Schema):

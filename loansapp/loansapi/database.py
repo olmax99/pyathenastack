@@ -32,9 +32,8 @@ Base = declarative_base()
 Base.query = db_session.query_property()
 
 
-# TODO: What does init_db do? Why is it needed if database exist already?
-# This function is most likely optional in case a db creation is needed
-# (e.g. for testing) < assumption, needs to be verified
+# The initialization of the database needs to take place at time of the
+# Flask api creation.
 def init_db():
     # import all modules here that might define models so that
     # they will be registered properly on the metadata.  Otherwise

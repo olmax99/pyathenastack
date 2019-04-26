@@ -48,14 +48,8 @@ api.add_resource(AllLoans, '/api/loans')
 # -------------------------------------------
 #   CREATE DB
 # -------------------------------------------
-# TODO: Initialize db depending on testing mode or development
+# The database is initialized depending on RUN_MODE
 init_db()
-
-# # flask_sqlalchemy can be used optionally to pure sqlalchemy
-# # It offers Flask optimization (vaguely described) and convenience classes,
-# # e.g. query paginator,
-# db = SQLAlchemy(app)
-# ma = Marshmallow(app)
 
 
 # To use SQLAlchemy in a declarative way with your application,
