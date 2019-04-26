@@ -6,13 +6,10 @@ verify_ssl = true
 [dev-packages]
 
 [packages]
-flask-sqlalchemy = "*"
-flask-marshmallow = "*"
-marshmallow-sqlalchemy = "*"
-connexion = {extras = ["swagger-ui"],version = "*"}
-pymysql = "*"
-psycopg2 = "==2.8"
-psycopg2-binary = "*"
+flask = "*"
+flask-restplus = "*"
+sqlalchemy = "*"
+psycopg2 = "*"
 
 [requires]
 python_version = "3.7"

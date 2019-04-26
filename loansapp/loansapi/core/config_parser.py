@@ -1,4 +1,5 @@
-import pathlib,os
+import os
+import pathlib
 import configparser
 
 
@@ -9,7 +10,6 @@ def read_config(mode='DEV'):
     if os.path.isfile(config_file):
         try:
             parser.read(config_file)
-            # print(config_section_map(parser, mode))
             return config_section_map(parser, mode)
         except configparser.ParsingError as e:
             print(e)
@@ -27,6 +27,3 @@ def config_section_map(parser, section):
             print(f"exception on {option}!")
             dict1[option] = None
     return dict1
-
-
-# read_config()

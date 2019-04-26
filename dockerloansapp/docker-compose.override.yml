@@ -1,6 +1,8 @@
 version: '3'
 services:
   web:
+    env_file:
+      - .env.override
     volumes:
       - ./app:/app
     ports:
@@ -9,6 +11,7 @@ services:
       - FLASK_APP=loansapi/api.py
       - FLASK_DEBUG=1
       - 'RUN=pipenv run flask run --host=0.0.0.0 --port=5000'
+    # Define RUN_MODE="DEV" or "TEST" in .env.override
     # command: pipenv run flask run --host=0.0.0.0 --port=5000
     # Infinite loop, to keep it alive, for debugging
     command: bash -c "while true; do echo 'sleeping...' && sleep 10; done"
