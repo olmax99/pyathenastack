@@ -9,6 +9,8 @@ the flask declarative base approach.
 
 It should be fairly easy to replace the logic for loan payments with any other.
 
+![Graph](images/dockerflaskapi.png)
+
 ### Prerequisites
  
 + Pyenv
