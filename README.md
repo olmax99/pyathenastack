@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org//olmax99/dockerflaskapi.png)](https://travis-ci.org//olmax99/dockerflaskapi)
+
 # Docker Flask API
 
 This is a standalone webbased API project, which exposes data on loan payments from
