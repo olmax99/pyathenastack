@@ -1,0 +1,23 @@
+language:  python
+
+services:
+  - docker
+  
+branches:
+  only:
+  - master
+  - testing
+  - /^ci-.*$/
+  
+before_install:
+  - [ -f ./dockerloansapp/.env-override ] || rm ./dockerloansapp/.env.override
+  - echo "RUN_MODE=TEST" > .env.override
+  - cd dockerloansapp
+  - cd dockerloansapp && docker-compose up -d --build
+  - cd dockerloansapp && docker-compose exec web sh -c 'if [ -z ${RUN_MODE+TEST} ]; then echo "RUN_MODE is unset"; else echo "RUN_MODE is set to '$RUN_MODE'"; fi'
+  
+script:
+  
+  - cd dockerloansapp && docker-compose exec web sh -c 'pytest -v --disable-warnings'
+
+  
