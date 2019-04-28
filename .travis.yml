@@ -11,13 +11,11 @@ branches:
   
 before_install:
   - [ -f ./dockerloansapp/.env-override ] || rm ./dockerloansapp/.env.override
-  - echo "RUN_MODE=TEST" > .env.override
-  - cd dockerloansapp
-  - cd dockerloansapp && docker-compose up -d --build
-  - cd dockerloansapp && docker-compose exec web sh -c 'if [ -z ${RUN_MODE+TEST} ]; then echo "RUN_MODE is unset"; else echo "RUN_MODE is set to '$RUN_MODE'"; fi'
+  - echo "RUN_MODE=TEST" > ./dockerloansapp/.env.override
   
 script:
-  
-  - cd dockerloansapp && docker-compose exec web sh -c 'pytest -v --disable-warnings'
+  - cd dockerloansapp && docker-compose up -d --build
+  - docker-compose exec web sh -c 'if [ -z ${RUN_MODE+TEST} ]; then echo "RUN_MODE is unset"; else echo "RUN_MODE is set to ..."; fi && set | grep RUN_MODE'
+  - docker-compose exec web sh -c 'pytest -v --disable-warnings'
 
   

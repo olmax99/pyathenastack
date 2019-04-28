@@ -1,14 +1,15 @@
 from loansapi.models.payments import Payments
 from datetime import date, datetime
+from tests.base_client import client
 
 '''
-NOTE:   There is no app.test_client() needed, since the tests run inside docker
+NOTE:   app.test_client() is needed, since the tests run inside docker
         in RUN_MODE "TEST" against the test database attached to the Flask Api.
 
 '''
 
 
-def test_payment_crud():
+def test_payment_crud(client):
     new_entry = Payments(loan_id='xqd20166231',
                          status='PAIDOFF',
                          principal=1000,
