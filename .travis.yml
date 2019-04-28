@@ -10,13 +10,12 @@ branches:
   - /^ci-.*$/
   
 before_install:
-  - [ -f ./dockerloansapp/.env-override ] || rm ./dockerloansapp/.env.override
+  - if ! [ -f ./dockerloansapp/.env-override ]; then rm ./dockerloansapp/.env.override; fi
   # set RUN_MODE for testdb connection and prevent pytest from creating binary __pycache__ files
   - echo -e "RUN_MODE=TEST\nPYTHONDONTWRITEBYTECODE=1" > ./dockerloansapp/.env.override
   
 script:
   - cd dockerloansapp && docker-compose up -d --build
   - docker-compose exec web sh -c 'if [ -z ${RUN_MODE+TEST} ]; then echo "RUN_MODE is unset"; else echo "RUN_MODE is set to ..."; fi && set | grep RUN_MODE'
-- docker-compose exec web sh -c 'pytest -v --disable-warnings'
+  - docker-compose exec web sh -c 'pytest -v --disable-warnings'
 
-  
