@@ -15,7 +15,7 @@ branches:
   - /^ci-.*$/
 
 before_install:
-  - if [ -f ./dockerloansapp/.env ]; then cp ./dockerloansapp/.env dockerloansapp/.env; else >$2 echo "No .env file found. Create a .env file containing the TEST DATABASE credentials"; exit 1; fi
+  - if [ -f ./dockerloansapp/.env ]; then cp ./dockerloansapp/.env dockerloansapp/.env; else echo "No .env file found. Create a .env file containing the TEST DATABASE credentials"; exit 1; fi
   - if [ -f ./dockerloansapp/.env.override ]; then rm ./dockerloansapp/.env.override; fi
   # set RUN_MODE for testdb connection and prevent pytest from creating binary __pycache__ files
   - echo -e "RUN_MODE=TEST\nPYTHONDONTWRITEBYTECODE=1" > ./dockerloansapp/.env.override
