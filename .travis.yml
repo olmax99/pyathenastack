@@ -2,9 +2,6 @@ dist:  xenial
 language:  python
 python:  3.7.2
 
-
-# TODO: Define dynamic varibales for everything project naming related, e.g. paths and directories
-
 services:
   - docker
 
@@ -27,18 +24,18 @@ before_install:
   - pip install pipenv
 
 install:
-  - cd loansapp && pipenv lock && cd $TRAVIS_BUILD_DIR
+  - cd $APP_DIR && pipenv lock && cd $TRAVIS_BUILD_DIR
 
 before_script:
-  - ls -al $DOCKER_APP_DIR
-  - if [ -f dockerloansapp/.env ]; then cp dockerloansapp/.env dockerloansapp/.env;\
+  - if [ -f $DOCKER_APP_DIR/.env ]; then cp dockerloansapp/.env $DOCKER_APP_DIR/.env;\
     else echo "No .env file found. Create a .env file containing the TEST DATABASE credentials"; exit 1; fi
-  - if [ -f ./dockerloansapp/.env.override ]; then rm ./dockerloansapp/.env.override; fi
+  - if [ -f $DOCKER_APP_DIR/.env.override ]; then rm $DOCKER_APP_DIR/.env.override; fi
   # set RUN_MODE for testdb connection and prevent pytest from creating binary __pycache__ files
-  - echo -e "RUN_MODE=TEST\nPYTHONDONTWRITEBYTECODE=1" > ./dockerloansapp/.env.override
+  - echo -e "RUN_MODE=TEST\nPYTHONDONTWRITEBYTECODE=1" > $DOCKER_APP_DIR/.env.override
+  - ls -al $DOCKER_APP_DIR
 
 script:
-  - cd dockerloansapp && docker-compose up -d --build
+  - cd $DOCKER_APP_DIR && docker-compose up -d --build
   - docker-compose exec web sh -c 'if [ -z ${RUN_MODE+TEST} ]; then echo "RUN_MODE is unset"; \
     else echo "RUN_MODE is set to ..."; fi && set | grep RUN_MODE'
   - docker-compose exec web sh -c 'pytest -v --disable-warnings'
