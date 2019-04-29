@@ -12,7 +12,7 @@ branches:
   - /^ci-.*$/
   
 before_install:
-  - if ! [ -f ./dockerloansapp/.env-override ]; then rm ./dockerloansapp/.env.override; fi
+  - if [ -f ./dockerloansapp/.env.override ]; then rm ./dockerloansapp/.env.override; fi
   # set RUN_MODE for testdb connection and prevent pytest from creating binary __pycache__ files
   - echo -e "RUN_MODE=TEST\nPYTHONDONTWRITEBYTECODE=1" > ./dockerloansapp/.env.override
   
