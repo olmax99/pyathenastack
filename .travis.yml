@@ -2,20 +2,27 @@ dist:  xenial
 language:  python
 python:  3.7.2
 
+
+# TODO: Define dynamic varibales for everything project naming related, e.g. paths and directories
+
 services:
   - docker
-  
+
 branches:
   only:
   - master
   - testing
   - /^ci-.*$/
-  
+
 before_install:
+  - if [ -f ./dockerloansapp/.env ]; then cp ./dockerloansapp/.env dockerloansapp/.env; else >$2 echo "No .env file found. Create a .env file containing the TEST DATABASE credentials"; exit 1; fi
   - if [ -f ./dockerloansapp/.env.override ]; then rm ./dockerloansapp/.env.override; fi
   # set RUN_MODE for testdb connection and prevent pytest from creating binary __pycache__ files
   - echo -e "RUN_MODE=TEST\nPYTHONDONTWRITEBYTECODE=1" > ./dockerloansapp/.env.override
-  
+
+install:
+  - cd loansapp && pipenv lock
+
 script:
   - cd dockerloansapp && docker-compose up -d --build
   - docker-compose exec web sh -c 'if [ -z ${RUN_MODE+TEST} ]; then echo "RUN_MODE is unset"; else echo "RUN_MODE is set to ..."; fi && set | grep RUN_MODE'
