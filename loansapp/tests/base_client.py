@@ -1,18 +1,11 @@
 import pytest
 from loansapi import api
 from loansapi import database
-from loansapi.core.config_parser import read_config
 
 
 @pytest.fixture
 def client():
-    database_uri = ''.join(
-        ('postgresql+psycopg2://',
-         read_config('TEST')['db_user'], ':',
-         read_config('TEST')['db_passwd'], '@',
-         read_config('TEST')['db_host'], '/',
-         read_config('TEST')['db_name']))
-    api.app.config['DATABASE'] = database_uri
+    api.app.config['DATABASE'] = 'postgresql://test:test123@testdb/test_api'
     api.app.config['TESTING'] = True
     client = api.app.test_client()
 

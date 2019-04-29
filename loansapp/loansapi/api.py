@@ -23,14 +23,17 @@ app = Flask(__name__)
 
 # TODO: print to log debug in case it cannot be found
 app_mode = os.environ['RUN_MODE']
-database_uri = ''.join(
-    ('postgresql+psycopg2://',
-     read_config(app_mode)['db_user'], ':',
-     read_config(app_mode)['db_passwd'], '@',
-     read_config(app_mode)['db_host'], '/',
-     read_config(app_mode)['db_name']))
+if app_mode != 'TEST':
+    db_uri = ''.join(
+        ('postgresql+psycopg2://',
+         read_config(app_mode)['db_user'], ':',
+         read_config(app_mode)['db_passwd'], '@',
+         read_config(app_mode)['db_host'], '/',
+         read_config(app_mode)['db_name']))
+else:
+    db_uri = 'postgresql://test:test123@testdb/test_api'
 
-app.config['SQLALCHEMY_DATABASE_URI'] = database_uri
+app.config['SQLALCHEMY_DATABASE_URI'] = db_uri
 # makes sure that all changes to the db are committed after each HTTP request
 app.config['SQLALCHEMY_COMMIT_ON_TEARDOWN'] = True
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False

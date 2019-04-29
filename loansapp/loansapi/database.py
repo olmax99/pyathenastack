@@ -12,12 +12,15 @@ database tables.
 """
 
 app_mode = os.environ['RUN_MODE']
-engine_uri = ''.join(
-    ('postgresql://',
-     read_config(app_mode)['db_user'], ':',
-     read_config(app_mode)['db_passwd'], '@',
-     read_config(app_mode)['db_host'], '/',
-     read_config(app_mode)['db_name']))
+if app_mode != 'TEST':
+    engine_uri = ''.join(
+        ('postgresql://',
+         read_config(app_mode)['db_user'], ':',
+         read_config(app_mode)['db_passwd'], '@',
+         read_config(app_mode)['db_host'], '/',
+         read_config(app_mode)['db_name']))
+else:
+    engine_uri = 'postgresql://test:test123@testdb/test_api'
 
 engine = create_engine(engine_uri)
 # Provides scoped management of :class:`.Session` objects.

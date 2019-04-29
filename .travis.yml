@@ -1,6 +1,6 @@
-dist: xenial
+dist:  xenial
 language:  python
-python: 3.7.2
+python:  3.7.2
 
 services:
   - docker
@@ -11,12 +11,29 @@ branches:
   - testing
   - /^ci-.*$/
 
+env:
+  - APP_DIR="$TRAVIS_BUILD_DIR/loansapp"
+    DOCKER_APP_DIR="$TRAVIS_BUILD_DIR/dockerloansapp"
+
 before_install:
-  - [ -f ./dockerloansapp/.env-override ] || rm ./dockerloansapp/.env.override
+  - echo -e "Default Environment Variables:\n------------------------\n
+    TRAVIS_BUILD_DIR='$TRAVIS_BUILD_DIR'\n\n
+    Custom Environment Variables\n------------------------\n
+    APP_DIR='$APP_DIR'\nDOCKER_APP_DIR='$DOCKER_APP_DIR'"
+  - ls -al $TRAVIS_BUILD_DIR
+
+install:
+  - cd $APP_DIR && pipenv lock && cd $TRAVIS_BUILD_DIR
+
+before_script:
+  - if [ -f $DOCKER_APP_DIR/.env.override ]; then rm $DOCKER_APP_DIR/.env.override; fi
   # set RUN_MODE for testdb connection and prevent pytest from creating binary __pycache__ files
-  - echo -e "RUN_MODE=TEST\nPYTHONDONTWRITEBYTECODE=1" > ./dockerloansapp/.env.override
+  - echo -e "RUN_MODE=TEST\nPYTHONDONTWRITEBYTECODE=1" > $DOCKER_APP_DIR/.env.override
+  - ls -al $DOCKER_APP_DIR
 
 script:
-  - cd dockerloansapp && docker-compose up -d --build
-  - docker-compose exec web sh -c 'if [ -z ${RUN_MODE+TEST} ]; then echo "RUN_MODE is unset"; else echo "RUN_MODE is set to ..."; fi && set | grep RUN_MODE'
+  - cd $DOCKER_APP_DIR && docker-compose up -d --build
+  - docker ps -a
+  - docker-compose exec web sh -c 'if [ -z ${RUN_MODE+TEST} ]; then echo "RUN_MODE is unset"; else
+    echo "RUN_MODE is set to ..."; fi && set | grep RUN_MODE'
   - docker-compose exec web sh -c 'pytest -v --disable-warnings'
