@@ -15,27 +15,31 @@ branches:
   - /^ci-.*$/
 
 env:
-  - APP_DIR=loansapp
-  - DOCKER_DIR=dockerloansapp
+  - APP_DIR="$TRAVIS_BUILD_DIR/loansapp"
+    DOCKER_APP_DIR="$TRAVIS_BUILD_DIR/dockerloansapp"
 
 before_install:
   - echo -e "Default Environment Variables:\n------------------------\n
     TRAVIS_BUILD_DIR='$TRAVIS_BUILD_DIR'\n\n
     Custom Environment Variables\n------------------------\n
-    APP_DIR='$APP_DIR'\nDOCKER_DIR='$DOCKER_DIR'"
+    APP_DIR='$APP_DIR'\nDOCKER_APP_DIR='$DOCKER_APP_DIR'"
+  - ls -al $TRAVIS_BUILD_DIR
   - pip install pipenv
 
 install:
   - cd loansapp && pipenv lock && cd $TRAVIS_BUILD_DIR
 
 before_script:
-  - if [ -f dockerloansapp/.env ]; then cp dockerloansapp/.env dockerloansapp/.env; else echo "No .env file found. Create a .env file containing the TEST DATABASE credentials"; exit 1; fi
+  - ls -al $DOCKER_APP_DIR
+  - if [ -f dockerloansapp/.env ]; then cp dockerloansapp/.env dockerloansapp/.env;\
+    else echo "No .env file found. Create a .env file containing the TEST DATABASE credentials"; exit 1; fi
   - if [ -f ./dockerloansapp/.env.override ]; then rm ./dockerloansapp/.env.override; fi
   # set RUN_MODE for testdb connection and prevent pytest from creating binary __pycache__ files
   - echo -e "RUN_MODE=TEST\nPYTHONDONTWRITEBYTECODE=1" > ./dockerloansapp/.env.override
 
 script:
   - cd dockerloansapp && docker-compose up -d --build
-  - docker-compose exec web sh -c 'if [ -z ${RUN_MODE+TEST} ]; then echo "RUN_MODE is unset"; else echo "RUN_MODE is set to ..."; fi && set | grep RUN_MODE'
+  - docker-compose exec web sh -c 'if [ -z ${RUN_MODE+TEST} ]; then echo "RUN_MODE is unset"; \
+    else echo "RUN_MODE is set to ..."; fi && set | grep RUN_MODE'
   - docker-compose exec web sh -c 'pytest -v --disable-warnings'
 
