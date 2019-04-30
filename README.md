@@ -30,7 +30,7 @@ Docker should be installed on the system, else please read the [official Docker 
 
 ## Quickstart
 
-##### 1. Preparing the project environment
+#### 1. Preparing the project environment
 
 1. In the terminal:
 +  Verify that there is a file `python.version` present in the `dockerflaskapi/dockerloansapp` directory. Its
@@ -55,23 +55,24 @@ $ pipenv shell
 In PyCharm > Settings > Project Interpreter:
 + Verify that the Project Interpreter `Pipenv(loansapp)` is selected.
 
-*NOTE:*   PyCharm should be opened with the loansapp directory as top folder. Otherwise the pipenv interpreter
-  might behave not as being intended.
+*NOTE:*   PyCharm should be opened with the loansapp directory as the top folder. Otherwise the pipenv interpreter
+  might behave in an unexpected way.
 
 In PyCharm > Tools > Python Integrated Tools > Testing
 
 + Set default test runner: pytest
 
-NOTE:   Installing from PyCharm or even from both terminal and PyCharm should make no difference.
-  Ensure that <u>*Pipfile.lock*</u> is up-to-date.
+*NOTE:*   Installing from PyCharm or even from both terminal and PyCharm should make no difference.
+  Ensure that *Pipfile.lock* is up-to-date. In Pipfile directory simply run `$ pipenv lock` for creating a new
+  `Pipfile.lock`.
 
 
-##### 2. Create the database credential files
+#### 2. Create the database credential files
 
 There are two files containing the database access credentials that must be created manually.
 From the terminal:
 
-###### 1. Set the docker environment variables 
+##### 1. Set the docker environment variables 
 
 Inside the dockerflaskapi/dockerloansapp directory:
 
@@ -86,9 +87,9 @@ DEV_PASSWORD=flaskdb
 ```
 Replace the appropriate values with your own or simply use the above provided for the time being.
 
-###### 2. Create a database credentials file
+##### 2. Create a database credentials file
 
-*NOTE:* All values provided here <u>must</u> exactly match the values provided in the `.env` file.
+*NOTE:* All values provided here **must** exactly match the values provided in the `.env` file.
 
 Inside the dockerflaskapi/loansapp directory:
 
@@ -113,30 +114,42 @@ db_host = testdb
 The respective hosts are simply the service names as indicated in the docker-compose.yml file.
 
 
-##### 3. Run the project
+#### 3. Run the project
 
-###### 1. Set the applications run mode
+##### 1. Set the applications run mode
 
-In directory dockerflaskapi/dockerloansapp run the following command:
+In directory `dockerflaskapi/dockerloansapp` run the following command:
 
-`$ echo "RUN_MODE=DEV" > .env.override`
+```
+$ echo "RUN_MODE=DEV" > .env.override
+
+```
 
 This will create a custom environment file for the flask application. Based on this setting the
 appropriate credentials from the `.config.ini` are being passed to the Flask instance during creation.
 
-###### 2. Build and run the docker image in development
+##### 2. Build and run the docker image in development
 
-`$ docker-compose up -d --build`
+```
+$ docker-compose up -d --build`
+
+```
 
 All services should be running in docker now. Verify.
 
-`$ docker ps`
+```
+$ docker ps
 
-###### 3. Load the data into the database
+```
+
+##### 3. Load the data into the database
 
 From the project directory `dockerflaskapi/` run the following command:
 
-`$ cat loansproject_data.dump | docker exec -i dockerloansapp_postgres_1 psql -U flask flask_api`
+```
+$ cat loansproject_data.dump | docker exec -i dockerloansapp_postgres_1 psql -U flask flask_api
+
+```
 
 There is a postgreSQL database manager running in docker. Simply access it in your browser at
 `localhost: 8000` using the access credentials above and
@@ -144,11 +157,14 @@ There is a postgreSQL database manager running in docker. Simply access it in yo
 - Email: pgadmin4@pgadmin.org
 - Password: pgadmin
 
-###### 4. Run the web application
+##### 4. Run the web application
 
-In directory run the following command:
+In directory `dockerflaskapi/dockerloansapp` run the following command:
 
-`docker-compose exec web sh -c 'pipenv run flask run --host=0.0.0.0 --port=5000'`
+```
+$ docker-compose exec web sh -c 'pipenv run flask run --host=0.0.0.0 --port=5000'
+
+```
 
 The Swagger Api documentation can be accessed in your browser at `localhost:80`. You successfully
 launched the project.
@@ -156,28 +172,44 @@ launched the project.
 
 ## Running the tests
 
+TravisCI is preconfigured to run automated tests on:
+
+- PRs related to merges into master or any branch named `ci-<name>`
+- `git push` changes into master or any branch named `ci-<name>`
+
+For manually running the tests:
+
+#### 1. Ensure that test run mode is selected
+
+Before building the docker project create the following file in directory `dockerflaskapi/dockerloansapp`:
+
 ```
-echo "RUN_MODE=TEST" > .env.override
+$ if [ -f ./.env.override ]; then rm ./.env.override; fi
+$ echo -e "RUN_MODE=TEST\nPYTHONDONTWRITEBYTECODE=1" > ./.env.override
+
+```
+
+#### 2. Create Docker project in test mode
+
+In directory `dockerflaskapi/dockerloansapp`:
+
+```
 $ docker-compose up -d --build
+$ docker ps
+# Verify run_mode:
+$ docker-compose exec web sh -c 'set | grep RUN_MODE'
 
 ```
 
-Verify run_mode:
-    `$ docker-compose exec web sh -c 'set | grep RUN_MODE'`
+#### 3. Run pytest
+
+In directory `dockerflaskapi/dockerloansapp`:
 
 ```
 $ docker-compose exec web sh -c 'pytest -v --disable-warnings'
 
 ```
 
----
-
-
-NOTE:
-
-THE ORDER MATTERS!!! Database needs to be created in postgreSQL before initialization in flask!
-
----
 
 ## Advanced Usage
 
@@ -231,12 +263,22 @@ rm -r loansapp
 
 ```
 
+### Changing Nginx Configurations
+
+The flask docker is based on a project from *Sebastián Ramírez* [uwsgi-nginx-flask-docker](https://github.com/tiangolo/uwsgi-nginx-flask-docker). 
+
+A few adjustments have been made on the way, but all configuration and general instruction references are holding for 
+this project, too.  
+
+
 ## Author
 
 **OlafMarangone** - *Initial work* - [Gitlab](https://github.com/olmax99/dockerflaskapi.git)  
 contact: olmax99@gmail.com
 
 ## License
+
+MIT
  
 Copyright (C) 2019 Olaf Marangone  
 
