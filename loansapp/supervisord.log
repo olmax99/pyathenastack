@@ -1,0 +1,19 @@
+2019-08-05 15:23:31,567 CRIT Supervisor running as root (no user in config file)
+2019-08-05 15:23:31,629 INFO supervisord started with pid 1
+2019-08-05 15:23:32,632 INFO spawned: 'nginx' with pid 8
+2019-08-05 15:23:32,633 INFO spawned: 'uwsgi' with pid 9
+2019-08-05 15:23:33,929 INFO success: nginx entered RUNNING state, process has stayed up for > than 1 seconds (startsecs)
+2019-08-05 15:23:33,929 INFO success: uwsgi entered RUNNING state, process has stayed up for > than 1 seconds (startsecs)
+2019-08-05 15:23:35,385 INFO exited: uwsgi (exit status 22; not expected)
+2019-08-05 15:23:36,387 INFO spawned: 'uwsgi' with pid 11
+2019-08-05 15:23:36,904 INFO exited: uwsgi (exit status 22; not expected)
+2019-08-05 15:23:37,907 INFO spawned: 'uwsgi' with pid 12
+2019-08-05 15:23:38,378 INFO exited: uwsgi (exit status 22; not expected)
+2019-08-05 15:23:40,381 INFO spawned: 'uwsgi' with pid 13
+2019-08-05 15:23:41,973 INFO success: uwsgi entered RUNNING state, process has stayed up for > than 1 seconds (startsecs)
+2019-08-05 15:25:09,764 WARN received SIGTERM indicating exit request
+2019-08-05 15:25:10,084 INFO waiting for nginx, uwsgi to die
+2019-08-05 15:25:11,092 INFO stopped: uwsgi (exit status 0)
+2019-08-05 15:25:13,094 INFO waiting for nginx to die
+2019-08-05 15:25:16,098 INFO waiting for nginx to die
+2019-08-05 15:25:19,102 INFO waiting for nginx to die

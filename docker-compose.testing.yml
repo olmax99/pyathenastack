@@ -1,17 +1,28 @@
 version: '3'
 services:
   web:
-    env_file:
-      - .env.override
+    build: ./loansapp
     volumes:
-      - ./app:/app
+      - ./loansapp:/app
     ports:
       - "80:5000"
     environment:
       - FLASK_APP=loansapi/api.py
       - FLASK_DEBUG=1
+      - RUN_MODE=TEST
+      - PYTHONDONTWRITEBYTECODE=1
       - 'RUN=pipenv run flask run --host=0.0.0.0 --port=5000'
     # Define RUN_MODE="DEV" or "TEST" in .env.override
     # command: pipenv run flask run --host=0.0.0.0 --port=5000
     # Infinite loop, to keep it alive, for debugging
     command: bash -c "while true; do echo 'sleeping...' && sleep 10; done"
+  testdb:
+    image: postgres:11.2
+    ports:
+      - "5444:5432"
+    environment:
+      POSTGRES_DB: test_api
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: test123
+    networks:
+      - default

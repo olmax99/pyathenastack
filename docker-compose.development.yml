@@ -1,7 +1,19 @@
 version: '3'
 services:
   web:
-    build: ./app
+    build: ./loansapp
+    volumes:
+      - ./loansapp:/app
+    ports:
+      - "80:5000"
+    environment:
+      - FLASK_APP=loansapi/api.py
+      - FLASK_DEBUG=1
+      - RUN_MODE=DEV
+      - 'RUN=pipenv run flask run --host=0.0.0.0 --port=5000'
+    # Infinite loop, to keep it alive, recommended for debugging
+    # Comment out for running directly on uswgi/nginx
+    command: bash -c "while true; do echo 'sleeping...' && sleep 10; done"
   postgres:
     image: postgres:11.2
     ports:
@@ -12,16 +24,6 @@ services:
       POSTGRES_DB: "${DEV_DB}"
       POSTGRES_USER: "${DEV_USER}"
       POSTGRES_PASSWORD: "${DEV_PASSWORD}"
-    networks:
-      - default
-  testdb:
-    image: postgres:11.2
-    ports:
-      - "5444:5432"
-    environment:
-      POSTGRES_DB: test_api
-      POSTGRES_USER: test
-      POSTGRES_PASSWORD: test123
     networks:
       - default
   pgadmin:
