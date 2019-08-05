@@ -12,9 +12,6 @@ branches:
 
 env:
   - APP_DIR="$TRAVIS_BUILD_DIR/loansapp"
-    DOCKER_APP_DIR="$TRAVIS_BUILD_DIR/dockerloansapp"
-
-before_install:
   - echo -e "Default Environment Variables:\n------------------------\n
     TRAVIS_BUILD_DIR='$TRAVIS_BUILD_DIR'\n\n
     Custom Environment Variables\n------------------------\n
@@ -24,10 +21,7 @@ before_install:
 install:
   - cd $APP_DIR && pipenv lock && cd $TRAVIS_BUILD_DIR
 
-before_script:
-  - ls -al $DOCKER_APP_DIR
-
 script:
-  - cd $DOCKER_APP_DIR && docker-compose -f docker-compose.testing up -d --build
+  - cd $APP_DIR && docker-compose -f docker-compose.testing up -d --build
   - docker ps -a
   - docker-compose exec web sh -c 'pytest -v --disable-warnings'
