@@ -72,24 +72,7 @@ In PyCharm > Tools > Python Integrated Tools > Testing
 There are two files containing the database access credentials that must be created manually.
 From the terminal:
 
-##### 1. Set the docker environment variables 
-
-Inside the `dockerflaskapi/dockerloansapp` directory:
-
-`$ vim .env`
-
-.env
-```
-DEV_DB=flask_api
-DEV_USER=flask
-DEV_PASSWORD=flaskdb
-
-```
-Replace the appropriate values with your own or simply use the above provided for the time being.
-
-##### 2. Create a database credentials file
-
-*NOTE:* All values provided here **must** exactly match the values provided in the `.env` file.
+**NOTE:** All values provided here **need** to exactly match the values provided in the `.env` file.
 
 Inside the `dockerflaskapi/loansapp` directory:
 
@@ -118,27 +101,24 @@ The respective hosts are simply the service names as indicated in the docker-com
 
 ##### 1. Set the applications run mode
 
-In directory `dockerflaskapi/dockerloansapp` run the following command:
+There are two ways of running the app in development mode. By default the `web` container will
+run in sleep, and flask is invoked in debug.
+
+If you want to run the Flask app directly from nginx/uwsgi, comment out the line `command: ...` 
+in `dockerflaskapi/docker-compose.development.yml`:
 
 ```
-$ echo "RUN_MODE=DEV" > .env.override
+# Define RUN_MODE="DEV" or "TEST" in .env.override
+# command: pipenv run flask run --host=0.0.0.0 --port=5000
+# Infinite loop, to keep it alive, for debugging
+# command: bash -c "while true; do echo 'sleeping...' && sleep 10; done"  <-- COMMENT OUT
 
 ```
-
-This will create a custom environment file for the flask application. Based on this setting the
-appropriate credentials from the `.config.ini` are being passed to the Flask instance during creation.
 
 ##### 2. Build and run the docker image in development
 
 ```
-$ docker-compose up -d --build
-
-```
-
-All services should be running in docker now. Verify.
-
-```
-$ docker ps
+$ docker-compose -f docker-compose.development.yml up -d --build
 
 ```
 
@@ -168,12 +148,11 @@ can now access the database tables.
 In directory `dockerflaskapi/dockerloansapp` run the following command:
 
 ```
-$ docker-compose exec web sh -c 'pipenv run flask run --host=0.0.0.0 --port=5000'
+$ docker-compose -f docker-compose.development.yml exec web sh -c 'pipenv run flask run --host=0.0.0.0 --port=5000'
 
 ```
 
-The Swagger Api documentation can be accessed in your browser at `localhost:80`. You successfully
-launched the project.
+The Swagger Api documentation can be accessed in your browser at `localhost:80`.
 
 
 ## Running the tests
@@ -185,85 +164,46 @@ TravisCI is preconfigured to run automated tests on:
 
 For manually running the tests:
 
-#### 1. Ensure that test run mode is selected
+### Run pytest
 
-Before building the docker project create the following file in directory `dockerflaskapi/dockerloansapp`:
-
-```
-$ if [ -f ./.env.override ]; then rm ./.env.override; fi
-$ echo -e "RUN_MODE=TEST\nPYTHONDONTWRITEBYTECODE=1" > ./.env.override
+In directory `dockerflaskapi`:
 
 ```
+$ docker-compose -f docker-compose.testing.yml up -d --build && \
+docker-compose -f docker-compose.testing.yml exec web sh -c 'pytest -v --disable-warnings' && \
+docker-compose -f docker-compose.testing.yml down
 
-#### 2. Create Docker project in test mode
-
-In directory `dockerflaskapi/dockerloansapp`:
-
-```
-$ docker-compose up -d --build
-$ docker ps
-# Verify run_mode:
-$ docker-compose exec web sh -c 'set | grep RUN_MODE'
-
-```
-
-#### 3. Run pytest
-
-In directory `dockerflaskapi/dockerloansapp`:
-
-```
-$ docker-compose exec web sh -c 'pytest -v --disable-warnings'
 
 ```
 
 
-## Advanced Usage
+## General Instructions
 
 ### Changing The Project Name
 
 One of the first tasks when adjusting the business logic for repurposing this project is to
 the change following files:
 
-- In uwsgi.ini replace the following line:
-
 ```
+# In uwsgi.ini replace the following line:
+
 # module = loansapi.api
 module = <your project>.api
 
-```
 
-- In docker-compose.override.yml
-
-```
+# In docker-compose.development.yml
 environment:
   # - FLASK_APP=loansapi/api.py
   - FLASK_APP=<your project>/api.py
 
-```
-
-- In .travis.yml change the environment variables:
-
-```
+#In .travis.yml change the environment variables:
 env:
   # - APP_DIR="$TRAVIS_BUILD_DIR/loansapp"
-  # - DOCKER_APP_DIR="TRAVIS_BUILD_DIR/dockerloansapp"
   - APP_DIR="$TRAVIS_BUILD_DIR/<your project>"
-  - DOCKER_APP_DIR="TRAVIS_BUILD_DIR/docker<your project>"
 
-```
-
-- In the terminal in the `loansproject/dockerloansapp` directory, replace the simlink:
-
-```
-$ rm app
-$ ln -s ../<your project> app
-
-# Rename both parent directories
-cp -r dockerloansapp docker<your project>
-cp -r loansapp <your project>
-
-rm -r dockerloansapp
-rm -r loansapp
+# Rename the parent directory
+$ cp -r loansapp <your project>
+$ rm -r loansapp
 
 ```
 
