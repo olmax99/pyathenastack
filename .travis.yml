@@ -13,7 +13,7 @@ branches:
 env:
   - APP_DIR="$TRAVIS_BUILD_DIR/loansapp"
 
-before_install
+before_install:
   - echo -e "Default Environment Variables:\n------------------------\n
     TRAVIS_BUILD_DIR='$TRAVIS_BUILD_DIR'\n\n
     Custom Environment Variables\n------------------------\n
