@@ -74,23 +74,23 @@ From the terminal:
 
 **NOTE:** All values provided here **need** to exactly match the values provided in the `.env` file.
 
-Inside the `dockerflaskapi/loansapp` directory:
+Inside the `dockerflaskapi` directory:
 
-`$ vim .config.ini`
+`$ vim .env.development`
 
-.config.ini
+.env.development
 ```
-[DEV]
-db_user = flask
-db_passwd = flaskdb
-db_name = flask_api
-db_host = postgres
+# parameters need to match with those of .env file, which defines Postgres credentials
+POSTGRES_URI=postgres+psycopg2://flask:super_secret@postgres/flask_api
 
-[TEST]
-db_user = test
-db_passwd = test123
-db_name = test_api
-db_host = testdb
+```
+
+i.e. .env
+```
+DEV_DB=flask_api
+DEV_USER=flask
+DEV_PASSWORD=super_secret
+
 
 ```
 
@@ -127,7 +127,7 @@ $ docker-compose -f docker-compose.development.yml up -d --build
 From the project directory `dockerflaskapi/` run the following command:
 
 ```
-$ cat loansproject_data.dump | docker exec -i dockerloansapp_postgres_1 psql -U flask flask_api
+$ cat loansproject_data.dump | docker exec -i dockerflaskapi_postgres_1 psql -U flask flask_api
 
 ```
 

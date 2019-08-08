@@ -2,6 +2,8 @@ version: '3'
 services:
   web:
     build: ./loansapp
+    env_file:
+      - .env.development.yml
     volumes:
       - ./loansapp:/app
     ports:
@@ -9,7 +11,7 @@ services:
     environment:
       - FLASK_APP=loansapi/api.py
       - FLASK_DEBUG=1
-      - RUN_MODE=DEV
+      - RUN_MODE=DEVELOPMENT
       - 'RUN=pipenv run flask run --host=0.0.0.0 --port=5000'
     # Infinite loop, to keep it alive, recommended for debugging
     # Comment out for running directly on uswgi/nginx

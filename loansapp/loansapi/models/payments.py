@@ -7,14 +7,6 @@ from loansapi.database import Base
 from loansapi.models.categories import Categories
 
 
-# TODO: How to create Models based on existing database?
-# Use declarative_base extension in SQLAlchemy.
-# You can either declare the tables in your code, or automatically load them.
-# Here, we declare them separately.
-
-# TODO: How to define Schemas?
-# Still marshmallow is recommended for serialization
-
 # The Model declarative base class behaves like a regular Python class but has
 # a query attribute attached that can be used to query the model.
 class Payments(Base):

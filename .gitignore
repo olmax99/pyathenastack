@@ -78,7 +78,7 @@ ipython_config.py
 
 # Environments
 .env
-.env.override
+.env.*
 .venv
 env/
 venv/

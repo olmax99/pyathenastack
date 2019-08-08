@@ -1,44 +1,44 @@
 import os
 
-from loansapi.api import app
+from flask import current_app
 from flask import send_file, render_template
 
+from flask import Blueprint
+route_blueprint = Blueprint('route_blueprint', __name__)
 
-@app.route("/")
+
+# Create a URL route in our current_application for "/home"
+@route_blueprint.route('/main')
 def main():
-    index_path = os.path.join(app.static_folder, 'index.html')
-    return send_file(index_path)
-
-
-# Create a URL route in our application for "/"
-@app.route('/home')
-def home():
     """
     This function just responds to the browser ULR
-    localhost:5000/
+    localhost:5000/home
 
     :return:        the rendered template 'home.html'
     """
     return render_template('home.html')
 
 
-@app.route("/hello")
-def hello():
-    # This could also be returning an index.html
-    return '''Hello ya'all from Flask in a uWSGI Nginx Docker container with \
-     Python 3.7 (from the example template), 
-     try also: <a href="/users/">/users/</a>'''
+@route_blueprint.route('/log_test')
+def log_test():
+    current_app.logger.debug('this is a DEBUG message')
+    current_app.logger.info('this is an INFO message')
+    current_app.logger.warning('this is a WARNING message')
+    current_app.logger.error('this is an ERROR message')
+    current_app.logger.critical('this is a CRITICAL message')
+    index_path = os.path.join(current_app.static_folder, 'index.html')
+    return send_file(index_path)
 
 
 # Everything not declared before (not a Flask route / API endpoint)...
-@app.route('/<path:path>')
+@route_blueprint.route('/<path:path>')
 def route_frontend(path):
     # ...could be a static file needed by the front end that
     # doesn't use the `static` path (like in `<script src="bundle.js">`)
-    file_path = os.path.join(app.template_folder, path)
+    file_path = os.path.join(current_app.template_folder, path)
     if os.path.isfile(file_path):
         return send_file(file_path)
     # ...or should be handled by the SPA's "router" in front end
     else:
-        index_path = os.path.join(app.static_folder, 'index.html')
+        index_path = os.path.join(current_app.static_folder, 'index.html')
         return send_file(index_path)
