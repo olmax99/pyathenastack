@@ -1,5 +1,6 @@
 version: '3'
 services:
+
   web:
     build: ./loansapp
     volumes:
@@ -16,6 +17,9 @@ services:
     # command: pipenv run flask run --host=0.0.0.0 --port=5000
     # Infinite loop, to keep it alive, for debugging
     command: bash -c "while true; do echo 'sleeping...' && sleep 10; done"
+    depends_on:
+      - testdb
+
   testdb:
     image: postgres:11.2
     ports:

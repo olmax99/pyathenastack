@@ -1,8 +1,10 @@
 import os
+
+from loansapi.core.config_parser import read_config
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
-from loansapi.core.config_parser import read_config
 
 """
 This is a declarative approach. The Models are being built on pre-existing
