@@ -3,7 +3,7 @@ services:
   web:
     build: ./loansapp
     env_file:
-      - .env.development.yml
+      - web.env.dev
     volumes:
       - ./loansapp:/app
     ports:

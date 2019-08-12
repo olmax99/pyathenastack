@@ -10,10 +10,10 @@ services:
     environment:
       - FLASK_APP=loansapi/api.py
       - FLASK_DEBUG=1
-      - RUN_MODE=TEST
+      - RUN_MODE=TESTING
       - PYTHONDONTWRITEBYTECODE=1
       - 'RUN=pipenv run flask run --host=0.0.0.0 --port=5000'
-    # Define RUN_MODE="DEV" or "TEST" in .env.override
+    # Define RUN_MODE="DEVELOPMENT" or "TESTING" in .env.web.development
     # command: pipenv run flask run --host=0.0.0.0 --port=5000
     # Infinite loop, to keep it alive, for debugging
     command: bash -c "while true; do echo 'sleeping...' && sleep 10; done"

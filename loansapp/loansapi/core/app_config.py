@@ -15,7 +15,7 @@ class Config(object):
 class DevelopmentConfig(Config):
     DEBUG = True
 
-    SQLALCHEMY_DATABASE_URI: str = os.environ['POSTGRES_URI']
+    SQLALCHEMY_DATABASE_URI: str = os.getenv('POSTGRES_URI', None)
     SQLALCHEMY_COMMIT_ON_TEARDOWN = True
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
@@ -26,8 +26,9 @@ class DevelopmentConfig(Config):
 
 
 class TestingConfig(Config):
+    DEBUG = False
     TESTING = True
 
-    DATABASE_URI: str = f"postgresql+psycopg2://test:test123@testdb/test_api"
+    SQLALCHEMY_DATABASE_URI: str = f"postgresql+psycopg2://test:test123@testdb/test_api"
 
     # TEST_REDIS_URL = "redis://:test123@redistest:6379/0"

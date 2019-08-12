@@ -18,7 +18,8 @@ RESTPlus is utilized for two purposes only:
 
 def create_app(config='Development'):
     app = Flask(__name__)
-    app.config.from_object(f"loansapi.core.app_config.{config}Config")
+    if config is not None:
+        app.config.from_object(f"loansapi.core.app_config.{config}Config")
 
     @app.teardown_appcontext
     def shutdown_session(exception=None):
@@ -40,7 +41,3 @@ def init_app(app_obj):
     from loansapi.apis.resources import api
     api.init_app(app_obj)
 
-
-# NEEDED by client in tests/base_client.py
-RUN_MODE = os.environ['RUN_MODE'].title()
-app = create_app(config=RUN_MODE)

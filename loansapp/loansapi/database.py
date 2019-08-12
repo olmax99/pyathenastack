@@ -1,5 +1,7 @@
 import os
 
+# from loansapi.api import app
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
@@ -13,7 +15,7 @@ database tables.
 
 # TODO: Replace with Flask-SQLAlchemy - has declarative_base approach built-in
 app_mode = os.environ['RUN_MODE']
-if app_mode != 'TEST':
+if app_mode != 'TESTING':
     engine_uri = os.environ['POSTGRES_URI']
 else:
     engine_uri = 'postgresql://test:test123@testdb/test_api'

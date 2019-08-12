@@ -1,3 +1,5 @@
+import pytest
+
 from loansapi.models.payments import Payments
 from datetime import date, datetime
 from tests.base_client import client
