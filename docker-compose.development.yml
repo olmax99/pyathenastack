@@ -1,6 +1,6 @@
 version: '3'
 services:
-  web:
+  web.flaskapi:
     build: ./loansapp
     env_file:
       - web.env.dev
@@ -16,16 +16,27 @@ services:
     # Infinite loop, to keep it alive, recommended for debugging
     # Comment out for running directly on uswgi/nginx
     command: bash -c "while true; do echo 'sleeping...' && sleep 10; done"
-  postgres:
+  postgres.flaskapi:
     image: postgres:11.2
     ports:
       - "5432:5432"
     volumes:
-      - postgresdata:/var/lib/postgres/data
+      - postgres_flaskapi_data:/var/lib/postgres/data
     environment:
       POSTGRES_DB: "${DEV_DB}"
       POSTGRES_USER: "${DEV_USER}"
       POSTGRES_PASSWORD: "${DEV_PASSWORD}"
+    networks:
+      - default
+  redis.flaskapi:
+    image: redis:5.0-alpine
+    environment:
+      REDIS_PASSWD: "${REDIS_PASSWD}"
+    volumes:
+      - redis_flaskapi_data:/data
+    command: redis-server --requirepass "${REDIS_PASSWD}"
+    ports:
+      - '6379:6379'
     networks:
       - default
   pgadmin:
@@ -40,4 +51,5 @@ services:
     networks:
       - default
 volumes:
-    postgresdata:
+    postgres_flaskapi_data:
+    redis_flaskpi_data:

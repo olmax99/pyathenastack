@@ -1,6 +1,6 @@
 import pytest
 from loansapi import api
-from loansapi import database
+from loansapi.core import database
 
 
 @pytest.fixture

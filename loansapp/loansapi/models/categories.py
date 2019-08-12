@@ -1,7 +1,6 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey
-from sqlalchemy.orm import relationship
+from sqlalchemy import Column, Integer, String, Boolean
 
-from loansapi.database import Base
+from loansapi.core.database import Base
 
 # from loansapi.models.payments import Payments
 

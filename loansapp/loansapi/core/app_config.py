@@ -14,21 +14,18 @@ class Config(object):
 
 class DevelopmentConfig(Config):
     DEBUG = True
-
+    TESTING = False
     SQLALCHEMY_DATABASE_URI: str = os.getenv('POSTGRES_URI', None)
     SQLALCHEMY_COMMIT_ON_TEARDOWN = True
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-
-    # REDIS_URL = f"redis://:{os.environ['REDIS_PASSWD']}@" \
-    #     f"{os.environ['REDIS_HOST']}:" \
-    #     f"{os.environ['REDIS_PORT']}/" \
-    #     f"{os.environ['REDIS_DB']}"
+    REDIS_URL = f"redis://:{os.environ['REDIS_PASSWD']}@" \
+        f"{os.environ['REDIS_HOST']}:" \
+        f"{os.environ['REDIS_PORT']}/" \
+        f"{os.environ['REDIS_DB']}"
 
 
 class TestingConfig(Config):
     DEBUG = False
     TESTING = True
-
     SQLALCHEMY_DATABASE_URI: str = f"postgresql+psycopg2://test:test123@testdb/test_api"
-
     # TEST_REDIS_URL = "redis://:test123@redistest:6379/0"

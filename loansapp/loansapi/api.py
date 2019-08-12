@@ -1,8 +1,7 @@
-import os
 from flask import Flask
 
 # Enable session.query created with pure sqlalchemy
-from loansapi.database import db_session
+from loansapi.core.database import db_session
 
 
 # -------------------------------------------
@@ -10,9 +9,9 @@ from loansapi.database import db_session
 # -------------------------------------------
 """
 RESTPlus is utilized for two purposes only:    
-    1. Providing resources
+    1. Providing resources class
     2. Swagger documentation
-    DO NOT USE MODELS 
+    DO NOT USE MODELS!
 """
 
 
@@ -32,7 +31,7 @@ def create_app(config='Development'):
 def init_app(app_obj):
     # db.init_app(app)
     # migrate.init_app(app, db)
-    from loansapi.database import init_db
+    from loansapi.core.database import init_db
     init_db()
 
     from loansapi.core.app_setup import route_blueprint
