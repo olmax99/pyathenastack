@@ -41,6 +41,7 @@ $ pipenv shell
 
 (loansapp)$ pipenv install Flask
 (loansapp)$ pipenv install flask-restplus
+(loansapp)$ pipenv install flask-redis
 (loansapp)$ pipenv install sqlalchemy
 (loansapp)$ pipenv install psycopg2
 (loansapp)$ pipenv install pytest
