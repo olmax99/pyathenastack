@@ -17,8 +17,11 @@ services:
     # command: pipenv run flask run --host=0.0.0.0 --port=5000
     # Infinite loop, to keep it alive, for debugging
     command: bash -c "while true; do echo 'sleeping...' && sleep 10; done"
+    networks:
+      - default
     depends_on:
       - testdb
+      - testredis
 
   testdb:
     image: postgres:11.2
@@ -30,3 +33,14 @@ services:
       POSTGRES_PASSWORD: test123
     networks:
       - default
+
+  testredis:
+    image: redis:5.0-alpine
+    ports:
+      - "6379:6379"
+    environment:
+      REDIS_PASSWD: test456
+    command: redis-server --requirepass test456
+    networks:
+      - default
+

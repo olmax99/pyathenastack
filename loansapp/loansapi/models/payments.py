@@ -4,6 +4,7 @@ from sqlalchemy.orm import relationship
 from loansapi.core import database
 from loansapi.core.database import Base
 # NOTE: This is mistakenly flagged as unreferenced by PyCharm
+from loansapi.models.categories import Categories
 
 
 # The Model declarative base class behaves like a regular Python class but has
