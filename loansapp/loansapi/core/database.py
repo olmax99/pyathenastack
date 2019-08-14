@@ -18,7 +18,7 @@ app_mode = os.environ['RUN_MODE']
 if app_mode != 'TESTING':
     engine_uri = os.environ['POSTGRES_URI']
 else:
-    engine_uri = 'postgresql://test:test123@testdb/test_api'
+    engine_uri = 'postgresql://test:test123@postgres.testing/test_api'
 
 engine = create_engine(engine_uri)
 # Provides scoped management of :class:`.Session` objects.

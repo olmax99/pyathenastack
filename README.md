@@ -78,16 +78,18 @@ From the terminal:
 Inside the `dockerflaskapi` directory:
 
 ```
-$ vim web.env.dev
+$ vim .env.web.dev
 
-# parameters need to match with those of .env.postgres.development file
-POSTGRES_URI=postgres+psycopg2://flask:super_secret@postgres/flask_api
+# parameters need to match with those of .env file
+POSTGRES_URI=postgres+psycopg2://flask:super_secret@postgres.flaskapi/flask_api
+REDIS_URI=redis://:super_secret2@redis.flaskapi:6379/0
 
 $ vim .env
 
 DEV_DB=flask_api
 DEV_USER=flask
 DEV_PASSWORD=super_secret
+REDIS_PASSWD=super_secret2
 
 
 ```
@@ -122,7 +124,7 @@ $ docker-compose -f docker-compose.development.yml up -d --build
 From the project directory `dockerflaskapi/` run the following command:
 
 ```
-$ cat loansproject_data.dump | docker exec -i dockerflaskapi_postgres_1 psql -U flask flask_api
+$ cat loansproject_data.dump | docker exec -i dockerflaskapi_postgres.flaskapi_1 psql -U flask flask_api
 
 ```
 
@@ -143,7 +145,7 @@ can now access the database tables.
 In directory `dockerflaskapi` run the following command:
 
 ```
-$ docker-compose -f docker-compose.development.yml exec web sh -c 'pipenv run flask run --host=0.0.0.0 --port=5000'
+$ docker-compose -f docker-compose.development.yml exec web.flaskapi sh -c 'pipenv run flask run --host=0.0.0.0 --port=5000'
 
 ```
 
@@ -166,7 +168,7 @@ In directory `dockerflaskapi`:
 ```
 $ docker-compose -f docker-compose.testing.yml up -d --build 
 
-$ docker-compose -f docker-compose.testing.yml exec web sh -c 'pytest -v --disable-warnings'
+$ docker-compose -f docker-compose.testing.yml exec web.testing sh -c 'pytest -v --disable-warnings'
 
 $ docker-compose -f docker-compose.testing.yml down
 

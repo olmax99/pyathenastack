@@ -1,7 +1,7 @@
 version: '3'
 services:
 
-  web:
+  web.testing:
     build: ./loansapp
     volumes:
       - ./loansapp:/app
@@ -20,10 +20,10 @@ services:
     networks:
       - default
     depends_on:
-      - testdb
-      - testredis
+      - postgres.testing
+      - redis.testing
 
-  testdb:
+  postgres.testing:
     image: postgres:11.2
     ports:
       - "5444:5432"
@@ -34,7 +34,7 @@ services:
     networks:
       - default
 
-  testredis:
+  redis.testing:
     image: redis:5.0-alpine
     ports:
       - "6379:6379"

@@ -42,7 +42,7 @@ class FlaskRedis(object):
 
     def init_app(self, app, **kwargs):
         redis_url = app.config.get(
-            '{0}_URL'.format(self.config_prefix),
+            '{0}_URI'.format(self.config_prefix),
             "redis://:@localhost:6379/0"
         )
 

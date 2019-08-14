@@ -12,6 +12,7 @@ RESTPlus is utilized for two purposes only:
     1. Providing resources class
     2. Swagger documentation
     DO NOT USE MODELS!
+    
 """
 
 
@@ -39,6 +40,3 @@ def init_app(app_obj):
 
     from loansapi.apis.resources import api
     api.init_app(app_obj)
-
-# NEEDED by client in tests/base_client.py
-# app = create_app(config='Testing')

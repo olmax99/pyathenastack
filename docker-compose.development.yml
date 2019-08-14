@@ -3,7 +3,7 @@ services:
   web.flaskapi:
     build: ./loansapp
     env_file:
-      - web.env.dev
+      - .env.web.dev
     volumes:
       - ./loansapp:/app
     ports:
@@ -42,7 +42,7 @@ services:
   pgadmin:
     image:  dpage/pgadmin4
     depends_on:
-      - postgres
+      - postgres.flaskapi
     ports:
       - "8000:80"
     environment:
@@ -52,4 +52,4 @@ services:
       - default
 volumes:
     postgres_flaskapi_data:
-    redis_flaskpi_data:
+    redis_flaskapi_data:
