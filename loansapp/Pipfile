@@ -12,6 +12,8 @@ sqlalchemy = "*"
 psycopg2-binary = "*"
 pytest = "*"
 flask-redis = "*"
+ijson = "*"
+requests = "*"
 
 [requires]
 python_version = "3.7"

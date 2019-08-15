@@ -26,7 +26,7 @@ class HookFactory(object):
         return "HookFactory"
 
     @staticmethod
-    def create(chunk_size=10, type_hook='local_file'):
+    def create(chunk_size=10, type_hook='local'):
         assert type_hook is not None and isinstance(type_hook, str)
         if type_hook == 'local':
             return LocalHook(chunk_size)

@@ -37,6 +37,7 @@ class LocalHook(BaseHook):
     def loading_from(self, source_path, chunks=True, custom_encoding='utf-8', mapper=None):
         with open(source_path, 'r', encoding=custom_encoding) as file:
             mapped_gen = (row for row in map(mapper, ijson.items(file=file, prefix='item')))
+            logger.debug(f"mapped_gen = {mapped_gen}")
             if not chunks:
                 yield mapped_gen
             else:
