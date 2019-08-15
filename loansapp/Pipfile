@@ -9,7 +9,7 @@ verify_ssl = true
 flask = "*"
 flask-restplus = "*"
 sqlalchemy = "*"
-psycopg2 = "*"
+psycopg2-binary = "*"
 pytest = "*"
 flask-redis = "*"
 

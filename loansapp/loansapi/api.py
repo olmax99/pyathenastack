@@ -3,6 +3,8 @@ from flask import Flask
 # Enable session.query created with pure sqlalchemy
 from loansapi.core.database import db_session
 
+from loansapi.core.redis_config import DecodedRedis
+from loansapi.core.redis_conn import FlaskRedis
 
 # -------------------------------------------
 #   APP FACTORY
@@ -14,6 +16,9 @@ RESTPlus is utilized for two purposes only:
     DO NOT USE MODELS!
     
 """
+
+redis_conn = FlaskRedis.from_custom_provider(
+    DecodedRedis, app=None, config_prefix='REDIS')
 
 
 def create_app(config='Development'):
