@@ -19,6 +19,7 @@ It should be fairly easy to replace the logic for loan payments with any other.
 - persistent logs (postgres)
 - JWT passphrase endpoints
 - production environment with cloudformation
+- Admin view for creating users and store JWT
 
 
 ## Prerequisites

@@ -6,7 +6,7 @@ from loansapi.api import redis_conn
 
 
 def get_sba_permits(uwsgi_app_object, job_id, long_job_id):
-    from loansapi.apis.resources.sba_permits.permits_object import PermitsAthena
+    from loansapi.apis.resources.sbapi_permits.permits_object import PermitsAthena
     sync_athena = PermitsAthena(current_uuid=job_id)
 
     from loansapi.apis.resources import utilities

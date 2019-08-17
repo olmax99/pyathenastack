@@ -14,6 +14,8 @@ pytest = "*"
 flask-redis = "*"
 ijson = "*"
 requests = "*"
+pandas = "*"
+requests-mock = {extras = ["fixture"],version = "*"}
 
 [requires]
 python_version = "3.7"

@@ -8,7 +8,7 @@ from flask import current_app
 from flask_restplus import Resource
 from redis import RedisError
 
-from loansapi.apis.resources.sba_permits.background_tasks import get_sba_permits
+from loansapi.apis.resources.sbapi_permits.background_tasks import get_sba_permits
 from loansapi.api import redis_conn
 
 
