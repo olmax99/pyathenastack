@@ -24,7 +24,7 @@ class GetPermits(Resource):
         with current_app.app_context():
             called_at = datetime.utcnow()
             new_job_uuid = str(uuid.uuid1())
-            sync_runner_job_id = f"lws_prod_report_{new_job_uuid}"
+            sync_runner_job_id = f"permits_{new_job_uuid}"
 
             current_app.logger.info(f'WebApi: create new job_id "{sync_runner_job_id}"')
 

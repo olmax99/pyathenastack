@@ -16,6 +16,8 @@ ijson = "*"
 requests = "*"
 pandas = "*"
 requests-mock = {extras = ["fixture"],version = "*"}
+pytest-mock = "*"
+pyarrow = "*"
 
 [requires]
 python_version = "3.7"

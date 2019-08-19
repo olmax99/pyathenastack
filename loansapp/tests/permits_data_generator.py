@@ -1,6 +1,7 @@
 import json
 import string
 import time
+import pandas as pd
 
 from datetime import timedelta, datetime
 from random import randint, uniform, choice, randrange, choices
@@ -58,4 +59,10 @@ def random_permits(n_rows=2):
     return json.dumps([create_new_row() for _ in range(n_rows)])
 
 
-print(random_permits(n_rows=3))
+# output = random_permits(n_rows=3)
+# print(output)
+# data = json.loads(output)
+# print(data)
+# df = pd.DataFrame(data)
+# print(df.columns)
+

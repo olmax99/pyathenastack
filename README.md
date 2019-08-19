@@ -1,26 +1,26 @@
 # Docker Flask API [![Build Status](https://travis-ci.org//olmax99/dockerflaskapi.png)](https://travis-ci.org//olmax99/dockerflaskapi)
 
-This is a standalone webbased API project, which exposes data on loan payments from
-a postgreSQL database to multiple RESTful API endpoints.
+This is a web API project. Its main purpose is to store large datasets
+into a data lake (AWS S3), and further load the data into the data warehouse (AWS Athena).
 
 The application can be deployed anywhere Docker can be deployed to. Tests are performed
-using the lightweight pytest framework. The ORM is set up in SQLAlchemy directly applying
+using the pytest framework. The ORM is set up in SQLAlchemy directly applying
 the flask declarative base approach.
 
-It should be fairly easy to replace the logic for loan payments with any other.
+--- 
 
-![Graph](images/dockerflaskapi.png)
+**Project Design**
 
-## Project Design
-
+- Store large JSON to parquet.
 - celery + redis background worker
 - session token with user id (postgres)
 - alembic database updates
 - persistent logs (postgres)
 - JWT passphrase endpoints
-- production environment with cloudformation
+- cloudformation.staging.yml + cloudformation.production.yml
 - Admin view for creating users and store JWT
 
+![Graph](images/dockerflaskapi.png)
 
 ## Prerequisites
 
@@ -31,6 +31,11 @@ It should be fairly easy to replace the logic for loan payments with any other.
 
 
 ## Quickstart
+
+---
+
+**NOTE:** For demonstration purposes, this project assumes the [serverless base api](https://github.com/olmax99/serverlessbaseapi) 
+project as the data source and to be up and running.
 
 ### 1. Preparing the project environment
 
@@ -91,6 +96,8 @@ DEV_DB=flask_api
 DEV_USER=flask
 DEV_PASSWORD=super_secret
 REDIS_PASSWD=super_secret2
+PERMITS_URL=<cf-apigateway>         <-- Get from 'serverless base api' project
+PERMITS_KEY=<x-api-key>             <-- Get from 'serverless base api' project
 
 
 ```
