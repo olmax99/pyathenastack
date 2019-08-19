@@ -24,7 +24,7 @@ def get_sba_permits(uwsgi_app_object, job_id, long_job_id):
                              headers=headers,
                              chunks=False) as http_data:
 
-        sync_athena.permits_to_parquet(source_iterable=http_data, parquet_file=f"{job_id}.parquet")
+        sync_athena.permits_to_parquet(source_iterable=http_data, parquet_file=f"{job_id}", chunks=False)
 
     try:
         redis_conn.set(long_job_id, 'finished')

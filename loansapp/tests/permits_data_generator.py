@@ -66,3 +66,4 @@ def random_permits(n_rows=2):
 # df = pd.DataFrame(data)
 # print(df.columns)
 
+
