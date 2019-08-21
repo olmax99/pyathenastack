@@ -1,1 +1,1 @@
-from .resources import categories, payments
+from .resources import categories, payments, sbapipermits

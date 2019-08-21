@@ -1,11 +1,12 @@
 # Docker Flask API [![Build Status](https://travis-ci.org//olmax99/dockerflaskapi.png)](https://travis-ci.org//olmax99/dockerflaskapi)
 
 This is a web API project. Its main purpose is to store large datasets
-into a data lake (AWS S3), and further load the data into the data warehouse (AWS Athena).
+into a data lake (AWS S3), and further load the data into the data 
+warehouse (AWS Athena).
 
-The application can be deployed anywhere Docker can be deployed to. Tests are performed
-using the pytest framework. The ORM is set up in SQLAlchemy directly applying
-the flask declarative base approach.
+The application can be deployed anywhere Docker can be deployed to. 
+Tests are performed using the pytest framework. The ORM is set up in 
+SQLAlchemy directly applying the flask declarative base approach.
 
 --- 
 
@@ -18,6 +19,7 @@ the flask declarative base approach.
 - persistent logs (postgres)
 - JWT passphrase endpoints
 - cloudformation.staging.yml + cloudformation.production.yml
+- Review 'AWS Well Architected Framework' - split templates into VPC groups
 - Admin view for creating users and store JWT
 
 ![Graph](images/dockerflaskapi.png)
@@ -60,26 +62,29 @@ In PyCharm:
 In PyCharm > Settings > Project Interpreter:
 + Verify that the Project Interpreter `Pipenv(loansapp)` is selected.
 
-*NOTE:*   PyCharm should be opened with the loansapp directory as the top folder. Otherwise 
-  the pipenv interpreter might behave in an unexpected way.
+*NOTE:*   PyCharm should be opened with the loansapp directory as the
+  top folder. Otherwise the pipenv interpreter might behave in an 
+  unexpected way.
 
 In PyCharm > Tools > Python Integrated Tools > Testing
 
 + Set default test runner: pytest
 
-*NOTE:*   Installing from PyCharm or even from both terminal and PyCharm should make no 
-  difference. Ensure that *Pipfile.lock* is up-to-date. In Pipfile directory simply run 
-  `$ pipenv lock` for creating a new `Pipfile.lock`.
+*NOTE:*   Installing from PyCharm or even from both terminal and 
+  PyCharm should make no difference. Ensure that *Pipfile.lock* is 
+  up-to-date. In Pipfile directory simply run `$ pipenv lock` for 
+  creating a new `Pipfile.lock`.
 
 
 ### 2. Create the database credential files
 
-There are two files containing the database access credentials that need to be created 
-manually.
+There are two files containing the database access credentials that 
+need to be created manually.
+
 From the terminal:
 
-**NOTE:** All values provided here need to match the values provided in the 
-`.env` file.
+**NOTE:** All values provided here need to match the values provided in
+the `.env` file.
 
 Inside the `dockerflaskapi` directory:
 
@@ -89,6 +94,8 @@ $ vim .env.web.dev
 # parameters need to match with those of .env file
 POSTGRES_URI=postgres+psycopg2://flask:super_secret@postgres.flaskapi/flask_api
 REDIS_URI=redis://:super_secret2@redis.flaskapi:6379/0
+PERMITS_URL=<cf-apigateway>                               <-- Get from 'serverless base api' project
+PERMITS_KEY=<x-api-key>                                   <-- Get from 'serverless base api' project
 
 $ vim .env
 
@@ -96,9 +103,6 @@ DEV_DB=flask_api
 DEV_USER=flask
 DEV_PASSWORD=super_secret
 REDIS_PASSWD=super_secret2
-PERMITS_URL=<cf-apigateway>         <-- Get from 'serverless base api' project
-PERMITS_KEY=<x-api-key>             <-- Get from 'serverless base api' project
-
 
 ```
 
@@ -106,11 +110,12 @@ PERMITS_KEY=<x-api-key>             <-- Get from 'serverless base api' project
 
 #### 1. Set the applications run mode
 
-There are two ways of running the app in development mode. By default the `web` container will
-run in sleep, and flask is invoked in debug.
+There are two ways of running the app in development mode. By default 
+the `web` container will run in sleep, and flask is invoked in debug.
 
-If you want to run the Flask app directly from nginx/uwsgi, comment out the line starting with
-`command: ...` in `dockerflaskapi/docker-compose.development.yml`:
+1. If you want to run the Flask app directly from nginx/uwsgi, comment 
+out the line starting with `command: ...` in 
+`dockerflaskapi/docker-compose.development.yml`:
 
 ```
 # Define RUN_MODE="DEV" or "TEST" in .env.override
@@ -120,10 +125,14 @@ If you want to run the Flask app directly from nginx/uwsgi, comment out the line
 
 ```
 
+2. If you want to run the application in DEBUG mode for developing on the
+code base, uncomment the last line. It is then recommended to run docker 
+in detached mode
+
 #### 2. Build and run the docker image in development
 
 ```
-$ docker-compose -f docker-compose.development.yml up -d --build
+$ docker-compose -f docker-compose.development.yml up --build
 
 ```
 
@@ -136,17 +145,18 @@ $ cat loansproject_data.dump | docker exec -i dockerflaskapi_postgres.flaskapi_1
 
 ```
 
-There is a postgreSQL database manager running in docker. Simply access it in your browser at
-`localhost: 8000` using the access credentials above and
+There is a postgreSQL database manager running in docker. Simply access
+it in your browser at `localhost: 8000` using the access credentials 
+above and
 
 - Email: pgadmin4@pgadmin.org
 - Password: pgadmin
 
-Inside PgAdmin Dashboard go to 'Quick Links' > 'Add New Server'. Under 'General' provide any Name,
-e.g. 'Loans Project Dev'.
+Inside PgAdmin Dashboard go to 'Quick Links' > 'Add New Server'. Under 
+'General' provide any Name, e.g. 'Loans Project Dev'.
 
-Under 'Connection' provide 'Host: postgres', 'Username: flask', 'Password: flaskdb', and 'Save'. You
-can now access the database tables.
+Under 'Connection' provide 'Host: postgres', 'Username: flask', 
+'Password: flaskdb', and 'Save'. You can now access the database tables.
 
 #### 4. Run the web application
 
@@ -174,7 +184,7 @@ For manually running the tests:
 In directory `dockerflaskapi`:
 
 ```
-$ docker-compose -f docker-compose.testing.yml up -d --build 
+$ docker-compose -f docker-compose.testing.yml up -d --build
 
 $ docker-compose -f docker-compose.testing.yml exec web.testing sh -c 'pytest -v --disable-warnings'
 

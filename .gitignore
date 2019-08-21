@@ -95,6 +95,6 @@ dmypy.json
 .pyre/
 
 # Others
-*.log
+**/*.log
 *.json
 *.parquet

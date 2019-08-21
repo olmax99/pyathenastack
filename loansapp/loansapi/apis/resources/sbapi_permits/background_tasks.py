@@ -13,7 +13,11 @@ def get_sba_permits(uwsgi_app_object, job_id, long_job_id):
     fac = utilities.HookFactory()
     reader = fac.create(type_hook='http', chunk_size=200)
 
-    redis_conn.set(long_job_id, 'active')
+    try:
+        redis_conn.set(long_job_id, 'active')
+    except RedisError as e:
+        print(f"Redis{e.__class__.__name__}: could not write job status '{{{job_id}: 'active'}}'.")
+
     uwsgi_app_object.logger.info('WebApi: job started "get sba-permits"')
 
     target_url = os.getenv('PERMITS_URL', None)
@@ -29,6 +33,6 @@ def get_sba_permits(uwsgi_app_object, job_id, long_job_id):
     try:
         redis_conn.set(long_job_id, 'finished')
     except RedisError as e:
-        print(f"{e.__class__.__name__}: could not write job status '{{{job_id}: 'finished'}}'.")
+        print(f"Redis{e.__class__.__name__}: could not write job status '{{{job_id}: 'finished'}}'.")
 
     uwsgi_app_object.logger.info(f"WebApi: get sba-permits finished - '{job_id}'")

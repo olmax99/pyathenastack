@@ -14,7 +14,7 @@ from loansapi.api import redis_conn
 
 # asyncio or threading
 # With asyncio endpoints needs to be called in async
-class GetPermits(Resource):
+class PermitsReport(Resource):
     def post(self):
         """
         This is the download of all Permits data exposed through the serverlessbaseapi
@@ -33,8 +33,9 @@ class GetPermits(Resource):
                 # TODO: Add expiration tag in redis
                 redis_conn.mset({sync_runner_job_id: 'listen'})
             except RedisError as e:
-                return f"{e.__class__.__name__}: could not write job status '{{{sync_runner_job_id}: 'listen'}}'."
+                return f"Redis{e.__class__.__name__}: could not write job status '{{{sync_runner_job_id}: 'listen'}}'."
 
+            current_app.logger.info("WebApi: Start backgroundjob.")
             # TODO: Use futures and ThreadPool or create Redis message queue
             Thread(target=get_sba_permits, args=(current_app._get_current_object(),
                                                  new_job_uuid,

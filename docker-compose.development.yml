@@ -16,6 +16,9 @@ services:
     # Infinite loop, to keep it alive, recommended for debugging
     # Comment out for running directly on uswgi/nginx
     # command: bash -c "while true; do echo 'sleeping...' && sleep 10; done"
+    depends_on:
+      - postgres.flaskapi
+      - redis.flaskapi
   postgres.flaskapi:
     image: postgres:11.2
     ports:

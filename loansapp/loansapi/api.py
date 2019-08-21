@@ -35,9 +35,11 @@ def create_app(config='Development'):
 
 
 def init_app(app_obj):
+    redis_conn.init_app(app_obj)
+
+    from loansapi.core.database import init_db
     # db.init_app(app)
     # migrate.init_app(app, db)
-    from loansapi.core.database import init_db
     init_db()
 
     from loansapi.core.app_setup import route_blueprint
