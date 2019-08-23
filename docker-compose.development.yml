@@ -35,7 +35,7 @@ services:
     networks:
       - default
   worker.flaskapi:
-    build: ./celery
+    build: celery_queue
     env_file:
       - .env.worker.dev
     environment:
@@ -45,7 +45,7 @@ services:
     networks:
       - default
   flower.flaskapi:
-    build: ./celery
+    build: celery_queue
     ports:
       - "5555:5555"
     entrypoint: flower

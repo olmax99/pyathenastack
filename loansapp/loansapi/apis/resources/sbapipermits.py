@@ -8,7 +8,8 @@ from flask import current_app
 from flask_restplus import Resource
 from redis import RedisError
 
-from loansapi.apis.resources.sbapi_permits.background_tasks import get_sba_permits
+# from loansapi.apis.resources.sbapi_permits.background_tasks import get_sba_permits
+from loansapi.core.worker import celery
 from loansapi.api import redis_conn
 
 
@@ -37,9 +38,9 @@ class PermitsReport(Resource):
 
             current_app.logger.info("WebApi: Start backgroundjob.")
             # TODO: Use futures and ThreadPool or create Redis message queue
-            Thread(target=get_sba_permits, args=(current_app._get_current_object(),
-                                                 new_job_uuid,
-                                                 sync_runner_job_id)).start()
+            task = celery.send_task('tasks.getsbapermits',
+                                    args=[new_job_uuid, sync_runner_job_id],
+                                    kwargs={})
 
             # Flask response standard: data or body, status code, and headers (default={'Content-Type': 'html'})
             return {'sync_runner_job_id': sync_runner_job_id,

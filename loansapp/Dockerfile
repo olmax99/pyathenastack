@@ -109,7 +109,7 @@ EXPOSE 443
 # -------------------------------------------------------------------------------
 
 # Use pipenv first for dependeny verification
-# RUN pip install celery==4.3.0 amqp==2.5.1 billiard==3.6.1.0 kombu==4.6.4
+# RUN pip install celery_queue==4.3.0 amqp==2.5.1 billiard==3.6.1.0 kombu==4.6.4
 
 # -------------------------------------------------------------------------------
 #   NGINX Configuration

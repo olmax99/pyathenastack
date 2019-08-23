@@ -98,4 +98,5 @@ dmypy.json
 *.log
 *.json
 *.parquet
+*.txt
 /loansapp/supervisord.log

@@ -21,7 +21,7 @@ redis_conn = FlaskRedis.from_custom_provider(
     DecodedRedis, app=None, config_prefix='REDIS')
 
 
-def create_app(config='Development'):
+def create_app(config='Development') -> Flask:
     app = Flask(__name__)
     if config is not None:
         app.config.from_object(f"loansapi.core.app_config.{config}Config")

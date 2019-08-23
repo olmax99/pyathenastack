@@ -1,5 +1,5 @@
-from loansapi.apis.resources.utilities.hooks import LocalHook
-from loansapi.apis.resources.utilities.hooks import HttpHook
+from utilities.hooks import LocalHook
+from utilities.hooks import HttpHook
 
 
 class Error(Exception):
