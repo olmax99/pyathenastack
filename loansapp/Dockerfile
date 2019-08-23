@@ -1,4 +1,4 @@
-FROM python:3.7-stretch
+FROM python:3.6-stretch
 
 
 # Standard set up Nginx
@@ -105,6 +105,13 @@ EXPOSE 80
 EXPOSE 443
 
 # -------------------------------------------------------------------------------
+#   CELERY Installations
+# -------------------------------------------------------------------------------
+
+# Use pipenv first for dependeny verification
+# RUN pip install celery==4.3.0 amqp==2.5.1 billiard==3.6.1.0 kombu==4.6.4
+
+# -------------------------------------------------------------------------------
 #   NGINX Configuration
 # -------------------------------------------------------------------------------
 
@@ -118,7 +125,7 @@ COPY uwsgi.ini /etc/uwsgi/
 
 # Install Supervisord
 RUN apt-get update && apt-get install -y supervisor \
-&& rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/*
 # Custom Supervisord config
 COPY ./supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
@@ -138,7 +145,7 @@ ENV NGINX_MAX_UPLOAD 0
 
 # By default, Nginx will run a single worker process, setting it to auto
 # will create a worker for each CPU core
-ENV NGINX_WORKER_PROCESSES 1
+ENV NGINX_WORKER_PROCESSES auto
 
 # Copy the entrypoint that will generate Nginx additional configs
 COPY entrypoint.sh /entrypoint.sh

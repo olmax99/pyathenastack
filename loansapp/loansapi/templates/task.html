@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Celery</title>
+</head>
+<body>
+    <a href="{{ '/check/%s'%task_id.id|urlencode }}" >
+        check status of {{ task_id.id }}
+    </a>
+</body>
+</html>

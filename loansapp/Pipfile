@@ -18,6 +18,10 @@ pandas = "*"
 requests-mock = {extras = ["fixture"],version = "*"}
 pytest-mock = "*"
 pyarrow = "*"
+celery = "*"
+amqp = "*"
+kombu = "*"
+billiard = "*"
 
 [requires]
-python_version = "3.7"
+python_version = "3.6"

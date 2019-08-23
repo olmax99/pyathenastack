@@ -5,6 +5,9 @@ from redis import RedisError
 from loansapi.api import redis_conn
 
 
+# TODO: Verify if app.logger is necessarry or replace by custom task logger
+#  i.e. from celery.utils.log import get_task_logger
+#  logger = get_task_logger(__name__)
 def get_sba_permits(uwsgi_app_object, job_id, long_job_id):
     from loansapi.apis.resources.sbapi_permits.permits_object import PermitsAthena
     sync_athena = PermitsAthena(current_uuid=job_id)

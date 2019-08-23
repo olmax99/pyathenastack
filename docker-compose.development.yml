@@ -12,6 +12,7 @@ services:
       - FLASK_APP=loansapi/api.py
       - FLASK_DEBUG=1
       - RUN_MODE=DEVELOPMENT
+      - C_FORCE_ROOT=true
       - 'RUN=pipenv run flask run --host=0.0.0.0 --port=5000'
     # Infinite loop, to keep it alive, recommended for debugging
     # Comment out for running directly on uswgi/nginx
@@ -19,6 +20,8 @@ services:
     depends_on:
       - postgres.flaskapi
       - redis.flaskapi
+    networks:
+      - default
   postgres.flaskapi:
     image: postgres:11.2
     ports:
@@ -31,6 +34,24 @@ services:
       POSTGRES_PASSWORD: "${DEV_PASSWORD}"
     networks:
       - default
+  worker.flaskapi:
+    build: ./celery
+    env_file:
+      - .env.worker.dev
+    environment:
+      - C_FORCE_ROOT=true
+    depends_on:
+      - redis.flaskapi
+    networks:
+      - default
+  flower.flaskapi:
+    build: ./celery
+    ports:
+      - "5555:5555"
+    entrypoint: flower
+    command: ["-A", "tasks", "--port=5555", "--broker=${REDIS_URI}"]
+    depends_on:
+      - redis.flaskapi
   redis.flaskapi:
     image: redis:5.0-alpine
     environment:

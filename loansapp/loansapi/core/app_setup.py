@@ -1,7 +1,11 @@
 import os
 
-from flask import current_app
+from flask import current_app, make_response, request
 from flask import send_file, render_template
+
+from flask import url_for
+from loansapi.core.worker import celery
+import celery.states as states
 
 from flask import Blueprint
 route_blueprint = Blueprint('route_blueprint', __name__)
@@ -28,6 +32,23 @@ def log_test():
     current_app.logger.critical('this is a CRITICAL message')
     index_path = os.path.join(current_app.static_folder, 'index.html')
     return send_file(index_path)
+
+
+@route_blueprint.route('/add/<int:param1>/<int:param2>')
+def add(param1: int, param2: int) -> str:
+    task = celery.send_task('tasks.add', args=[param1, param2], kwargs={})
+    response = make_response(render_template('task.html', task_id=task))
+    response.headers.set('Content-Security-Policy', "default-src 'self'")
+    return response
+
+
+@route_blueprint.route('/check/<string:task_id>')
+def check_task(task_id: str) -> str:
+    res = celery.AsyncResult(task_id)
+    if res.state == states.PENDING:
+        return res.state
+    else:
+        return str(res.result)
 
 
 # Everything not declared before (not a Flask route / API endpoint)...

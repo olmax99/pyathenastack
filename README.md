@@ -31,6 +31,11 @@ SQLAlchemy directly applying the flask declarative base approach.
 + Python Version 3.7.1
 + Docker installed [official Docker docs](https://docs.docker.com/)
 
+---
+
+**NOTE:** Currently, Celery will fail on Python 3.7.1 due to conflicting naming
+of packages using `async`, which is now a keyword in Python. Downgrade to `3.6.9`
+
 
 ## Quickstart
 
@@ -94,8 +99,15 @@ $ vim .env.web.dev
 # parameters need to match with those of .env file
 POSTGRES_URI=postgres+psycopg2://flask:super_secret@postgres.flaskapi/flask_api
 REDIS_URI=redis://:super_secret2@redis.flaskapi:6379/0
+CELERY_BROKER_URL=redis://:super_secret2@redis.flaskapi:6379/0
+CELERY_RESULT_BACKEND=redis://:super_secret2@redis.flaskapi:6379/0
 PERMITS_URL=<cf-apigateway>                               <-- Get from 'serverless base api' project
 PERMITS_KEY=<x-api-key>                                   <-- Get from 'serverless base api' project
+
+$ vim .env.worker.dev
+
+CELERY_BROKER_URL=redis://:super_secret2@redis.flaskapi:6379/0
+CELERY_RESULT_BACKEND=redis://:super_secret2@redis.flaskapi:6379/0
 
 $ vim .env
 
@@ -103,6 +115,7 @@ DEV_DB=flask_api
 DEV_USER=flask
 DEV_PASSWORD=super_secret
 REDIS_PASSWD=super_secret2
+REDIS_URI=redis://:super_secret2@redis.flaskapi:6379/0
 
 ```
 
@@ -118,7 +131,6 @@ out the line starting with `command: ...` in
 `dockerflaskapi/docker-compose.development.yml`:
 
 ```
-# Define RUN_MODE="DEV" or "TEST" in .env.override
 # command: pipenv run flask run --host=0.0.0.0 --port=5000
 # Infinite loop, to keep it alive, for debugging
 # command: bash -c "while true; do echo 'sleeping...' && sleep 10; done"  <-- COMMENT OUT
