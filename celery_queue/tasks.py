@@ -4,6 +4,7 @@ import logging
 
 # from redis import RedisError
 from celery import Celery
+from celery.utils.log import get_task_logger
 
 import utilities
 from sbapi_permits.permits_object import PermitsAthena
@@ -16,7 +17,7 @@ CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'redis://localho
 
 celery = Celery('tasks', broker=CELERY_BROKER_URL, backend=CELERY_RESULT_BACKEND)
 
-logger = logging.getLogger(__name__)
+logger = get_task_logger(__name__)
 
 
 @celery.task(name='tasks.add')
@@ -37,22 +38,31 @@ def get_sba_permits(job_id: str, long_job_id: str):
     # except RedisError as e:
     #     print(f"Redis{e.__class__.__name__}: could not write job status '{{{job_id}: 'active'}}'.")
 
-    logger.info('WebApi: job started "get sba-permits"')
-
+    # TODO: Verify key and return sane error message
     target_url = os.getenv('PERMITS_URL', None)
     headers = {"x-api-key": f"{os.getenv('PERMITS_KEY', None)}"}
 
-    with reader.loading_from(target_url=target_url,
-                             hearders=headers,
-                             chunks=False) as http_data:
-        sync_athena.permits_to_parquet(source_iterable=http_data,
-                                       parquet_file=f"{job_id}",
-                                       chunks=False)
+    logger.info(f'Task: job started "get sba-permits" at {headers, target_url}')
+
+    try:
+        with reader.loading_from(target_url=target_url,
+                                 headers=headers,
+                                 chunks=False) as http_data:
+            # logger.info(f'Task: request iterable {http_data[:200], bool(http_data)}')
+            sync_athena.permits_to_parquet(source_iterable=http_data,
+                                           parquet_file=f"{job_id}",
+                                           chunks=False,
+                                           log=logger)
+
+    except RuntimeError as e:
+        logger.info(f'Task: {e}. Verify that "{target_url}" is the correct target url.')
+    except BaseException as e:
+        raise e
     
     # try:
     #     redis_conn.set(long_job_id, 'finished')
     # except RedisError as e:
     #     print(f"Redis{e.__class__.__name__}: could not write job status '{{{job_id}: 'finished'}}'.")
 
-    logger.info(f"WebApi: get sba-permits finished - '{job_id}'")
+    logger.info(f"Task: get sba-permits finished - '{job_id}'")
 

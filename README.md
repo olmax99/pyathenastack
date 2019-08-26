@@ -1,12 +1,12 @@
 # Docker Flask API [![Build Status](https://travis-ci.org//olmax99/dockerflaskapi.png)](https://travis-ci.org//olmax99/dockerflaskapi)
 
-This is a web API project. Its main purpose is to store large datasets
-into a data lake (AWS S3), and further load the data into the data 
-warehouse (AWS Athena).
+This is a web API project. Its main purpose is to store large datasets into 
+a data lake (AWS S3), and further load the data into the data warehouse 
+(AWS Athena).
 
-The application can be deployed anywhere Docker can be deployed to. 
-Tests are performed using the pytest framework. The ORM is set up in 
-SQLAlchemy directly applying the flask declarative base approach.
+The application can be deployed anywhere Docker can be deployed to. Tests 
+are performed using the pytest framework. The ORM is set up in SQLAlchemy 
+directly applying the flask declarative base approach.
 
 --- 
 
@@ -236,15 +236,15 @@ $ rm -r loansapp
 
 ```
 
-*NOTE*: It is recommended to use PyCharm for the refactoring the project directories, since all import statements need to
-be changed along the way.
+*NOTE*: It is recommended to use PyCharm for the refactoring of the project
+directories, since all import statements need to be changed along the way.
 
 ### Changing Nginx Configurations
 
 The flask docker is based on a project from *Sebastián Ramírez* [uwsgi-nginx-flask-docker](https://github.com/tiangolo/uwsgi-nginx-flask-docker). 
 
-A few adjustments have been made on the way, but all configuration and general instruction references are holding for 
-this project, too.  
+A few adjustments have been made along the way, but all configuration and
+general instruction references are holding for this project, too.  
 
 
 ## Author

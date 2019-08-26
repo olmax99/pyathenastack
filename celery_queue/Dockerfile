@@ -1,7 +1,7 @@
-FROM python:3.6-alpine
+FROM python:3.6.9-slim-stretch
 
-RUN apk update
-RUN apk add make automake gcc g++ subversion python3-dev
+# RUN apk update
+# RUN apk add make automake gcc g++ subversion python3-dev
 
 COPY ./ /queue
 WORKDIR /queue

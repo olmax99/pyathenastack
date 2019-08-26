@@ -11,6 +11,7 @@ ijson==2.4
 kombu==4.2.0
 numpy==1.17.0
 pandas==0.25.1
+pyarrow==0.14.1
 python-dateutil==2.8.0
 pytz==2018.3
 redis==2.10.6

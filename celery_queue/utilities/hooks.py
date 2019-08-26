@@ -53,14 +53,14 @@ class HttpHook(BaseHook):
     @contextlib.contextmanager
     def loading_from(self, target_url,
                      headers=None,
-                     user_name=None, user_password=None,
+                     # user_name=None, user_password=None,
                      chunks=True,
                      custom_encoding='utf-8'):
         try:
             with requests.post(target_url,
                                headers=headers,
-                               auth=HTTPBasicAuth(user_name, user_password),
-                               timeout=10,
+                               # auth=HTTPBasicAuth(user_name, user_password),
+                               timeout=100,
                                stream=True) as r:
                 r.encoding = custom_encoding
                 if not chunks:

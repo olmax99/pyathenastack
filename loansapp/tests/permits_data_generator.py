@@ -39,17 +39,11 @@ def create_new_row():
     _val = [f"20160{randint(1, 9)}{randint(10, 30)}{randint(10, 24)}{randint(10, 60)}#",
             f"{random_date(datetime.strptime('1/1/2015 1:30 PM', '%m/%d/%Y %I:%M %p'), datetime.strptime('1/1/2016 4:50 AM', '%m/%d/%Y %I:%M %p'))}",
             round(uniform(33852.99, 96542), 2),
-            choice([randint(0, 30), None]),
-            choice(["Y", None]),
-            choice([randint(0, 120), None]),
-            f"{randint(94000, 94999)}{choice([f'-0000', None])}",
-            None,
-            None,
+            randint(0, 3000),
             f"{''.join(choices(string.ascii_uppercase, k=randint(45, 285)))}"
             ]
 
-    _key = ["APPLICATION#", "FILE_DATE", "ESTIMATED COST", "PROPOSED UNITS", "15_DAY_HOLD?",
-            "LOT", "ZIP_CODE",	"CONTACT_NAME",	"CONTACT_PHONE"	, "DESCRIPTION"]
+    _key = ["application_number", "file_date", "estimated_cost", "record_id", "description"]
 
     # This is the row creation
     return {n: m for n, m in zip(_key, _val)}
