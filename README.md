@@ -177,6 +177,9 @@ In directory `dockerflaskapi` run the following command:
 ```
 $ docker-compose -f docker-compose.development.yml exec web.flaskapi sh -c 'pipenv run flask run --host=0.0.0.0 --port=5000'
 
+# OPTIONALLY - view real-time worker logs
+$ docker logs -f dockerflaskapi_worker.flaskapi_1
+
 ```
 
 The Swagger Api documentation can be accessed in your browser at `localhost:80`.

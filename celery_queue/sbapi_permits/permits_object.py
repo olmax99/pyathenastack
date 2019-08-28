@@ -1,10 +1,6 @@
 import os
 import pandas as pd
 
-# import logging
-#
-# logger = logging.getLogger()
-
 
 class Error(Exception):
     """Base class for exceptions in this module"""
@@ -25,7 +21,6 @@ class PermitsAthena(object):
     """
     Container for all resources and activities related for processing
     permits data from the serverlessbaseapi project.
-
 
     """
     def __init__(self,
