@@ -3,8 +3,9 @@ from itertools import chain
 
 import pytest
 
-from loansapi.apis.resources import utilities
+
 from tests.permits_data_generator import random_permits
+import utilities
 
 
 @pytest.fixture

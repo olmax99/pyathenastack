@@ -5,11 +5,11 @@ from datetime import datetime
 
 from flask import current_app
 from flask_restplus import Resource
-from redis import RedisError
+# from redis import RedisError
 
 
 from loansapi.core.worker import celery
-from loansapi.api import redis_conn
+# from loansapi.api import redis_conn
 
 
 class PermitsReport(Resource):

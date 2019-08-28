@@ -5,8 +5,8 @@ import logging
 import pytest
 import pandas as pd
 
-from loansapi.apis.resources import utilities
-from loansapi.apis.resources.sbapi_permits.permits_object import PermitsAthena
+import utilities
+from sbapi_permits.permits_object import PermitsAthena
 from tests.permits_data_generator import random_permits
 
 
@@ -39,7 +39,7 @@ def test_permits_to_parquet_no_chunks(caplog,
         logger = logging.getLogger()
 
         # create a file test file in temp folder
-        tmp_file = tmpdir.join("sample_data_set.parquet")
+        tmp_file = tmpdir.join("sample_data_no_chunk")
 
         with http_hook_no_chunks as http_stream:
             df_generated = pd.DataFrame(http_stream[0]).reset_index().drop(columns=['index'])
@@ -49,18 +49,19 @@ def test_permits_to_parquet_no_chunks(caplog,
             permits_object.permits_to_parquet(source_iterable=http_stream,
                                               parquet_file=tmp_file,
                                               chunks=False)
+        logger.debug(f"tmp_dir: {tmpdir.listdir()}")
 
-        test_parquet_df = pd.read_parquet(path=tmp_file,
+        test_parquet_df = pd.read_parquet(path=f"{tmp_file}.parquet",
                                           engine='pyarrow')
 
         logger.debug(f"parquet_df: {test_parquet_df}")
         logger.debug(f"parquet_df: {df_generated}")
 
         # df_generated['ESTIMATED COST'].sum() will come as type Decimal()
-        df_generated['ESTIMATED COST'] = pd.to_numeric(df_generated['ESTIMATED COST'], downcast='float', errors='coerce')
+        df_generated['estimated_cost'] = pd.to_numeric(df_generated['estimated_cost'], downcast='float', errors='coerce')
 
-        assert test_parquet_df['est_cost'].sum() == \
-            df_generated['ESTIMATED COST'].sum()
+        assert test_parquet_df['permit_est_cost'].sum() == \
+            df_generated['estimated_cost'].sum()
 
 
 # TODO: test cases with unequal chunks
@@ -101,9 +102,9 @@ for _c in test_case:
 
             # logger.debug(f"test_parquet_df_000: {test_parquet_df_000[['application_id', 'est_cost']]} \n"
             #              f" {df_generated[['APPLICATION#', 'ESTIMATED COST']].iloc[:3]}")
-            df_generated['ESTIMATED COST'] = pd.to_numeric(df_generated['ESTIMATED COST'], downcast='float', errors='coerce')
+            df_generated['estimated_cost'] = pd.to_numeric(df_generated['estimated_cost'], downcast='float', errors='coerce')
 
-            assert test_parquet_df_000['est_cost'].sum() == df_generated['ESTIMATED COST'].iloc[:3].sum()
-            assert test_parquet_df_001['est_cost'].sum() == df_generated['ESTIMATED COST'].iloc[3:6].sum()
-            assert test_parquet_df_002['est_cost'].sum() == df_generated['ESTIMATED COST'].iloc[6:].sum()
+            assert test_parquet_df_000['permit_est_cost'].sum() == df_generated['estimated_cost'].iloc[:3].sum()
+            assert test_parquet_df_001['permit_est_cost'].sum() == df_generated['estimated_cost'].iloc[3:6].sum()
+            assert test_parquet_df_002['permit_est_cost'].sum() == df_generated['estimated_cost'].iloc[6:].sum()
 

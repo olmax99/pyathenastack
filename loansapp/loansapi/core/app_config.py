@@ -16,9 +16,10 @@ class Config(object):
 class DevelopmentConfig(Config):
     DEBUG = True
     TESTING = False
-    SQLALCHEMY_DATABASE_URI: str = os.getenv('POSTGRES_URI', None)
-    SQLALCHEMY_COMMIT_ON_TEARDOWN = True
-    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    # OPTIONALLY: PostgreSQL
+    # SQLALCHEMY_DATABASE_URI: str = os.getenv('POSTGRES_URI', None)
+    # SQLALCHEMY_COMMIT_ON_TEARDOWN = True
+    # SQLALCHEMY_TRACK_MODIFICATIONS = False
     REDIS_URI: str = os.getenv('REDIS_URI', None)
 
 

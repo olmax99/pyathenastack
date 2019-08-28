@@ -19,6 +19,9 @@ ijson = "==2.4"
 requests = "==2.22.0"
 Babel = "==2.5.3"
 pandas = "*"
+pytest = "*"
+requests-mock = "*"
+pyarrow = "*"
 
 [requires]
 python_version = "3.6"

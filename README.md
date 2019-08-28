@@ -1,26 +1,12 @@
 # Docker Flask API [![Build Status](https://travis-ci.org//olmax99/dockerflaskapi.png)](https://travis-ci.org//olmax99/dockerflaskapi)
 
-This is a web API project. Its main purpose is to store large datasets into 
-a data lake (AWS S3), and further load the data into the data warehouse 
-(AWS Athena).
-
-The application can be deployed anywhere Docker can be deployed to. Tests 
-are performed using the pytest framework. The ORM is set up in SQLAlchemy 
-directly applying the flask declarative base approach.
+This is a web API project with a capability of distributed background 
+workers. Its main purpose is to store large datasets into a data lake 
+(AWS S3), and further load the data into the awarehouse (AWS Athena).
 
 --- 
 
 **Project Design**
-
-- Store large JSON to parquet.
-- celery + redis background worker
-- session token with user id (postgres)
-- alembic database updates
-- persistent logs (postgres)
-- JWT passphrase endpoints
-- cloudformation.staging.yml + cloudformation.production.yml
-- Review 'AWS Well Architected Framework' - split templates into VPC groups
-- Admin view for creating users and store JWT
 
 ![Graph](images/dockerflaskapi.png)
 
@@ -28,13 +14,14 @@ directly applying the flask declarative base approach.
 
 + Pyenv
 + Pipenv integrated with Pyenv
-+ Python Version 3.7.1
++ Python Version 3.6.9
 + Docker installed [official Docker docs](https://docs.docker.com/)
 
 ---
 
-**NOTE:** Currently, Celery will fail on Python 3.7.1 due to conflicting naming
-of packages using `async`, which is now a keyword in Python. Downgrade to `3.6.9`
+**NOTE:** Currently, Celery will fail on Python 3.7 due to conflicting 
+naming of packages using `async`, which is now a keyword in Python. 
+Temporarily downgraded to `3.6.9` until solved.
 
 
 ## Quickstart
@@ -97,7 +84,6 @@ Inside the `dockerflaskapi` directory:
 $ vim .env.web.dev
 
 # parameters need to match with those of .env file
-POSTGRES_URI=postgres+psycopg2://flask:super_secret@postgres.flaskapi/flask_api
 REDIS_URI=redis://:super_secret2@redis.flaskapi:6379/0
 CELERY_BROKER_URL=redis://:super_secret2@redis.flaskapi:6379/0
 CELERY_RESULT_BACKEND=redis://:super_secret2@redis.flaskapi:6379/0
@@ -111,9 +97,6 @@ CELERY_RESULT_BACKEND=redis://:super_secret2@redis.flaskapi:6379/0
 
 $ vim .env
 
-DEV_DB=flask_api
-DEV_USER=flask
-DEV_PASSWORD=super_secret
 REDIS_PASSWD=super_secret2
 REDIS_URI=redis://:super_secret2@redis.flaskapi:6379/0
 
@@ -148,31 +131,13 @@ $ docker-compose -f docker-compose.development.yml up --build
 
 ```
 
-#### 3. Load the data into the database
+#### 3. Run the web application
 
-From the project directory `dockerflaskapi/` run the following command:
+**NOTE:** Skip this step if Flask is running directly from nginx/uwsgi
 
-```
-$ cat loansproject_data.dump | docker exec -i dockerflaskapi_postgres.flaskapi_1 psql -U flask flask_api
+---
 
-```
-
-There is a postgreSQL database manager running in docker. Simply access
-it in your browser at `localhost: 8000` using the access credentials 
-above and
-
-- Email: pgadmin4@pgadmin.org
-- Password: pgadmin
-
-Inside PgAdmin Dashboard go to 'Quick Links' > 'Add New Server'. Under 
-'General' provide any Name, e.g. 'Loans Project Dev'.
-
-Under 'Connection' provide 'Host: postgres', 'Username: flask', 
-'Password: flaskdb', and 'Save'. You can now access the database tables.
-
-#### 4. Run the web application
-
-In directory `dockerflaskapi` run the following command:
+Only in DEBUG mode, in directory `dockerflaskapi` run the following command:
 
 ```
 $ docker-compose -f docker-compose.development.yml exec web.flaskapi sh -c 'pipenv run flask run --host=0.0.0.0 --port=5000'
@@ -182,7 +147,10 @@ $ docker logs -f dockerflaskapi_worker.flaskapi_1
 
 ```
 
-The Swagger Api documentation can be accessed in your browser at `localhost:80`.
+---
+
+1. The Swagger Api documentation can be accessed in your browser at `localhost:80`.
+2. Flower can be accessed on `localhost:5555`
 
 
 ## Running the tests
@@ -202,6 +170,8 @@ In directory `dockerflaskapi`:
 $ docker-compose -f docker-compose.testing.yml up -d --build
 
 $ docker-compose -f docker-compose.testing.yml exec web.testing sh -c 'pytest -v --disable-warnings'
+
+$ docker-compose -f docker-compose.testing.yml exec worker.testing sh -c 'pytest -v --disable-warnings'
 
 $ docker-compose -f docker-compose.testing.yml down
 

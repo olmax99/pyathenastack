@@ -1,7 +1,7 @@
 from flask import Flask
 
 # Enable session.query created with pure sqlalchemy
-from loansapi.core.database import db_session
+# from loansapi.core.database import db_session
 
 from loansapi.core.redis_config import DecodedRedis
 from loansapi.core.redis_conn import FlaskRedis
@@ -26,9 +26,10 @@ def create_app(config='Development') -> Flask:
     if config is not None:
         app.config.from_object(f"loansapi.core.app_config.{config}Config")
 
-    @app.teardown_appcontext
-    def shutdown_session(exception=None):
-        db_session.remove()
+    # OPTIONALLY: Use with PostgreSQL integration
+    # @app.teardown_appcontext
+    # def shutdown_session(exception=None):
+    #     db_session.remove()
 
     init_app(app)
     return app
@@ -37,10 +38,12 @@ def create_app(config='Development') -> Flask:
 def init_app(app_obj):
     redis_conn.init_app(app_obj)
 
-    from loansapi.core.database import init_db
+    # OPTIONALLY: PostgreSQL
+    # Do NOT integrate with docker-compose - use external db instead!
+    # from loansapi.core.database import init_db
     # db.init_app(app)
     # migrate.init_app(app, db)
-    init_db()
+    # init_db()
 
     from loansapi.core.app_setup import route_blueprint
     app_obj.register_blueprint(route_blueprint)

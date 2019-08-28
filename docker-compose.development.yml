@@ -20,20 +20,7 @@ services:
     # Comment out for running directly on uswgi/nginx
     command: bash -c "while true; do echo 'sleeping...' && sleep 10; done"
     depends_on:
-      - postgres.flaskapi
       - redis.flaskapi
-    networks:
-      - default
-  postgres.flaskapi:
-    image: postgres:11.2
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_flaskapi_data:/var/lib/postgres/data
-    environment:
-      POSTGRES_DB: "${DEV_DB}"
-      POSTGRES_USER: "${DEV_USER}"
-      POSTGRES_PASSWORD: "${DEV_PASSWORD}"
     networks:
       - default
   worker.flaskapi:
@@ -67,18 +54,6 @@ services:
       - '6379:6379'
     networks:
       - default
-  pgadmin:
-    image:  dpage/pgadmin4
-    depends_on:
-      - postgres.flaskapi
-    ports:
-      - "8000:80"
-    environment:
-      PGADMIN_DEFAULT_EMAIL: pgadmin4@pgadmin.org
-      PGADMIN_DEFAULT_PASSWORD: pgadmin
-    networks:
-      - default
 volumes:
-    postgres_flaskapi_data:
     redis_flaskapi_data:
 

@@ -28,3 +28,4 @@ script:
   - docker-compose -f docker-compose.testing.yml up -d --build
   - docker ps -a
   - docker-compose -f docker-compose.testing.yml exec web.testing sh -c 'pytest -v --disable-warnings'
+  - docker-compose -f docker-compose.testing.yml exec worker.testing sh -c 'pytest -v --disable-warnings'

@@ -1,14 +1,11 @@
 import os
 
-# from loansapi.api import app
-
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 
 """
-This is a declarative approach. The Models are being built on pre-existing
-database tables.
+This is a declarative approach. 
 [ http://flask.pocoo.org/docs/1.0/patterns/sqlalchemy/#declarative ]
 
 """

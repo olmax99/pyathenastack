@@ -37,13 +37,22 @@ def random_date(start, end):
 
 def create_new_row():
     _val = [f"20160{randint(1, 9)}{randint(10, 30)}{randint(10, 24)}{randint(10, 60)}#",
+            randint(0, 3000),
+            f"{''.join(choices(string.ascii_uppercase, k=randint(20, 55)))}",
+            f"{''.join(choices(string.ascii_uppercase, k=randint(45, 285)))}",
+            round(uniform(12000.5, 2202001.5), 2),
+            f"{random_date(datetime.strptime('1/1/2015 1:30 PM', '%m/%d/%Y %I:%M %p'), datetime.strptime('1/1/2016 4:50 AM', '%m/%d/%Y %I:%M %p'))}",
             f"{random_date(datetime.strptime('1/1/2015 1:30 PM', '%m/%d/%Y %I:%M %p'), datetime.strptime('1/1/2016 4:50 AM', '%m/%d/%Y %I:%M %p'))}",
             round(uniform(33852.99, 96542), 2),
-            randint(0, 3000),
-            f"{''.join(choices(string.ascii_uppercase, k=randint(45, 285)))}"
+            "ISSUED",
+            f"{random_date(datetime.strptime('1/1/2015 1:30 PM', '%m/%d/%Y %I:%M %p'), datetime.strptime('1/1/2016 4:50 AM', '%m/%d/%Y %I:%M %p'))}",
+            f"{''.join(choices(string.ascii_uppercase, k=randint(20, 55)))}",
+            f"{''.join(choices(string.ascii_uppercase, k=randint(20, 55)))}"
             ]
 
-    _key = ["application_number", "file_date", "estimated_cost", "record_id", "description"]
+    _key = ["application_number", "record_id", "address", "description", "estimated_cost",
+            "expiration_date", "file_date", "revised_cost", "status", "status_date",
+            "existing_use", "proposed_use"]
 
     # This is the row creation
     return {n: m for n, m in zip(_key, _val)}

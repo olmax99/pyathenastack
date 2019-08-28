@@ -20,19 +20,31 @@ services:
     networks:
       - default
     depends_on:
-      - postgres.testing
+      # - postgres.testing
       - redis.testing
 
-  postgres.testing:
-    image: postgres:11.2
-    ports:
-      - "5444:5432"
+  worker.testing:
+    build: celery_queue
+    volumes:
+      - $PWD/loansapp/data:/queue/data
     environment:
-      POSTGRES_DB: test_api
-      POSTGRES_USER: test
-      POSTGRES_PASSWORD: test123
+      - C_FORCE_ROOT=true
+    command: bash -c "while true; do echo 'sleeping...' && sleep 10; done"
+    depends_on:
+      - redis.testing
     networks:
       - default
+
+  # postgres.testing:
+  #   image: postgres:11.2
+  #   ports:
+  #     - "5444:5432"
+  #   environment:
+  #     POSTGRES_DB: test_api
+  #     POSTGRES_USER: test
+  #     POSTGRES_PASSWORD: test123
+  #   networks:
+  #     - default
 
   redis.testing:
     image: redis:5.0-alpine
