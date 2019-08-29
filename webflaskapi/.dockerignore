@@ -1,2 +1,8 @@
 Dockerfile
 .dockerignore
+.pytest_cache/**/*
+.pytest_cache
+tests/**/*
+tests
+data/**/*
+data

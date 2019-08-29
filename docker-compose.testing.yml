@@ -2,20 +2,18 @@ version: '3'
 services:
 
   web.testing:
-    build: ./loansapp
+    build: webflaskapi
     volumes:
-      - ./loansapp:/app
+      - $PWD/webflaskapi:/app
     ports:
       - "80:5000"
     environment:
-      - FLASK_APP=loansapi/api.py
+      - FLASK_APP=flaskapi/api.py
       - FLASK_DEBUG=1
       - RUN_MODE=TESTING
       - PYTHONDONTWRITEBYTECODE=1
       - 'RUN=pipenv run flask run --host=0.0.0.0 --port=5000'
-    # Define RUN_MODE="DEVELOPMENT" or "TESTING" in .env.web.development
-    # command: pipenv run flask run --host=0.0.0.0 --port=5000
-    # Infinite loop, to keep it alive, for debugging
+    # Infinite loop, to keep it alive, foar testing
     command: bash -c "while true; do echo 'sleeping...' && sleep 10; done"
     networks:
       - default
@@ -26,7 +24,7 @@ services:
   worker.testing:
     build: celery_queue
     volumes:
-      - $PWD/loansapp/data:/queue/data
+      - $PWD/webflaskapi/data:/queue/data
     environment:
       - C_FORCE_ROOT=true
     command: bash -c "while true; do echo 'sleeping...' && sleep 10; done"
