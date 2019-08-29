@@ -111,6 +111,9 @@ EXPOSE 443
 # Use pipenv first for dependeny verification
 # RUN pip install celery_queue==4.3.0 amqp==2.5.1 billiard==3.6.1.0 kombu==4.6.4
 
+COPY ./ /app
+WORKDIR /app
+
 # -------------------------------------------------------------------------------
 #   NGINX Configuration
 # -------------------------------------------------------------------------------
@@ -121,7 +124,6 @@ RUN pip install uwsgi
 # Remove default configuration from Nginx
 RUN rm /etc/nginx/conf.d/default.conf
 # Copy the base uWSGI ini file to enable default dynamic uwsgi process number
-RUN ls -al
 COPY ./uwsgi.ini /etc/uwsgi/
 
 # Install Supervisord
@@ -163,10 +165,6 @@ ENTRYPOINT ["/entrypoint.sh"]
 # (in a Dockerfile or with an option for `docker run`)
 EXPOSE 5000
 ENV LISTEN_PORT 5000
-
-
-COPY ./ /app
-WORKDIR /app
 
 RUN pip install pipenv
 RUN pipenv install --system --deploy --ignore-pipfile
