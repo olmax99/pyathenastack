@@ -39,6 +39,7 @@ def get_sba_permits(job_id: str, long_job_id: str):
 
     logger.info(f'Task: call endpoint {target_url}')
 
+    # TODO: Implement input/schema verification
     try:
         with reader.loading_from(target_url=target_url,
                                  headers=headers,
@@ -53,4 +54,5 @@ def get_sba_permits(job_id: str, long_job_id: str):
     except BaseException as e:
         raise e
 
+    # TODO: Implement Standard response
     return "FINISHED."

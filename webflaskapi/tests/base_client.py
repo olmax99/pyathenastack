@@ -1,9 +1,9 @@
 import pytest
 
-from loansapi import api
-# from loansapi.core import database
-from loansapi.core.redis_config import DecodedRedis
-from loansapi.core.redis_conn import FlaskRedis
+from flaskapi import api
+# from flaskapi.core import database
+from flaskapi.core.redis_config import DecodedRedis
+from flaskapi.core.redis_conn import FlaskRedis
 
 test_redis = FlaskRedis.from_custom_provider(
     DecodedRedis, app=None, config_prefix='TEST_REDIS')

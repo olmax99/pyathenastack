@@ -11,7 +11,7 @@ branches:
   - /^ci-.*$/
 
 env:
-  - APP_DIR="$TRAVIS_BUILD_DIR/loansapp"
+  - APP_DIR="$TRAVIS_BUILD_DIR/webflaskapi"
 
 before_install:
   - echo -e "Default Environment Variables:\n------------------------\n

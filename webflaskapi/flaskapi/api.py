@@ -1,10 +1,10 @@
 from flask import Flask
 
 # Enable session.query created with pure sqlalchemy
-# from loansapi.core.database import db_session
+# from flaskapi.core.database import db_session
 
-from loansapi.core.redis_config import DecodedRedis
-from loansapi.core.redis_conn import FlaskRedis
+from flaskapi.core.redis_config import DecodedRedis
+from flaskapi.core.redis_conn import FlaskRedis
 
 # -------------------------------------------
 #   APP FACTORY
@@ -24,7 +24,7 @@ redis_conn = FlaskRedis.from_custom_provider(
 def create_app(config='Development') -> Flask:
     app = Flask(__name__)
     if config is not None:
-        app.config.from_object(f"loansapi.core.app_config.{config}Config")
+        app.config.from_object(f"flaskapi.core.app_config.{config}Config")
 
     # OPTIONALLY: Use with PostgreSQL integration
     # @app.teardown_appcontext
@@ -40,13 +40,13 @@ def init_app(app_obj):
 
     # OPTIONALLY: PostgreSQL
     # Do NOT integrate with docker-compose - use external db instead!
-    # from loansapi.core.database import init_db
+    # from flaskapi.core.database import init_db
     # db.init_app(app)
     # migrate.init_app(app, db)
     # init_db()
 
-    from loansapi.core.app_setup import route_blueprint
+    from flaskapi.core.app_setup import route_blueprint
     app_obj.register_blueprint(route_blueprint)
 
-    from loansapi.apis.resources import api
+    from flaskapi.apis.resources import api
     api.init_app(app_obj)

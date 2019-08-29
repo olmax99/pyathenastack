@@ -8,8 +8,8 @@ from flask_restplus import Resource
 # from redis import RedisError
 
 
-from loansapi.core.worker import celery
-# from loansapi.api import redis_conn
+from flaskapi.core.worker import celery
+# from flaskapi.api import redis_conn
 
 
 class PermitsReport(Resource):
@@ -32,6 +32,7 @@ class PermitsReport(Resource):
 
             current_app.logger.info(f"WebApi: Start background job with id {task.id}.")
 
+            # TODO: Use generic response implementation
             # Flask response standard: data or body, status code, and headers (default={'Content-Type': 'html'})
             return {'sync_runner_job_id': sync_runner_job_id,
                     'task': task.id,

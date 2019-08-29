@@ -1,17 +1,17 @@
 version: '3'
 services:
   web.flaskapi:
-    build: ./loansapp
+    build: webflaskapi
     env_file:
       - .env.web.dev
     volumes:
-      - './loansapp:/app'
+      - './webflaskapi:/app'
       # shared volume with celery worker  
-      - $PWD/loansapp/data:/app/data
+      - $PWD/webflaskapi/data:/app/data
     ports:
       - "80:5000"
     environment:
-      - FLASK_APP=loansapi/api.py
+      - FLASK_APP=flaskapi/api.py
       - FLASK_DEBUG=1
       - RUN_MODE=DEVELOPMENT
       - C_FORCE_ROOT=true
@@ -28,7 +28,7 @@ services:
     env_file:
       - .env.worker.dev
     volumes:
-      - $PWD/loansapp/data:/queue/data
+      - $PWD/webflaskapi/data:/queue/data
     environment:
       - C_FORCE_ROOT=true
     depends_on:

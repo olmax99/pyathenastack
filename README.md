@@ -1,8 +1,8 @@
 # Docker Flask API [![Build Status](https://travis-ci.org//olmax99/dockerflaskapi.png)](https://travis-ci.org//olmax99/dockerflaskapi)
 
 This is a web API project with a capability of distributed background 
-workers. Its main purpose is to store large datasets into a data lake 
-(AWS S3), and further load the data into the awarehouse (AWS Athena).
+workers. Its main purpose is to read larger datasets from API endpoits
+and storing those into a data lake (AWS S3).
 
 --- 
 

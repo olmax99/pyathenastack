@@ -3,7 +3,7 @@ import os
 from flask import current_app, make_response, request
 from flask import send_file, render_template
 
-from loansapi.core.worker import celery
+from flaskapi.core.worker import celery
 import celery.states as states
 
 from flask import Blueprint
