@@ -113,7 +113,6 @@ EXPOSE 443
 
 COPY ./ /app
 WORKDIR /app
-RUN ls -al
 
 # -------------------------------------------------------------------------------
 #   NGINX Configuration
@@ -126,7 +125,7 @@ RUN pip install uwsgi
 RUN rm /etc/nginx/conf.d/default.conf
 
 # Copy the base uWSGI ini file to enable default dynamic uwsgi process number
-COPY ./uwsgi_1.ini /etc/uwsgi/uwsgi.ini
+COPY ./uwsgi.ini /etc/uwsgi/uwsgi.ini
 
 # Install Supervisord
 RUN apt-get update && apt-get install -y supervisor \
@@ -136,7 +135,7 @@ RUN apt-get update && apt-get install -y supervisor \
 COPY ./supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 # Which uWSGI .ini file should be used, to make it customizable
-ENV UWSGI_INI /app/uwsgi_1.ini
+ENV UWSGI_INI /app/uwsgi.ini
 
 # By default, run 2 processes
 ENV UWSGI_CHEAPER 2
