@@ -12,17 +12,21 @@ branches:
 
 env:
   - APP_DIR="$TRAVIS_BUILD_DIR/webflaskapi"
+  - QUEUE_DIR="$TRAVIS_BUILD_DIR/celery_queue"
 
 before_install:
-  - echo -e "Default Environment Variables:\n------------------------\n
+  - printf """Default Environment Variables:\n------------------------\n
     TRAVIS_BUILD_DIR='$TRAVIS_BUILD_DIR'\n\n
     Custom Environment Variables\n------------------------\n
-    APP_DIR='$APP_DIR'"
+    APP_DIR='$APP_DIR'
+    QUEUE_DIR='$QUEUE_DIR' """
   - ls -al $TRAVIS_BUILD_DIR
   - ls -al $APP_DIR
+  - ls -al $QUEUE_DIR
 
 install:
   - cd $APP_DIR && pipenv lock && cd $TRAVIS_BUILD_DIR
+  - cd $QUEUE_DIR && pipenv lock && cd $TRAVIS_BUILD_DIR
 
 script:
   - docker-compose -f docker-compose.testing.yml up -d --build

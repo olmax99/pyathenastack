@@ -124,6 +124,7 @@ RUN pip install uwsgi
 # Remove default configuration from Nginx
 RUN rm /etc/nginx/conf.d/default.conf
 # Copy the base uWSGI ini file to enable default dynamic uwsgi process number
+RUN ls -al
 COPY ./uwsgi.ini /etc/uwsgi/
 
 # Install Supervisord
