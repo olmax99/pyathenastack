@@ -15,7 +15,8 @@ env:
   - QUEUE_DIR="$TRAVIS_BUILD_DIR/celery_queue"
 
 before_install:
-  - cat << EOF
+  - |
+    sed 's/./x/' << EOF
     Default Environment Variables:
     ------------------------------
     TRAVIS_BUILD_DIR=$TRAVIS_BUILD_DIR
