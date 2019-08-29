@@ -15,11 +15,17 @@ env:
   - QUEUE_DIR="$TRAVIS_BUILD_DIR/celery_queue"
 
 before_install:
-  - printf """Default Environment Variables:\n------------------------\n
-    TRAVIS_BUILD_DIR='$TRAVIS_BUILD_DIR'\n\n
-    Custom Environment Variables\n------------------------\n
-    APP_DIR='$APP_DIR'
-    QUEUE_DIR='$QUEUE_DIR' """
+  - cat << EOF
+    Default Environment Variables:
+    ------------------------------
+    TRAVIS_BUILD_DIR=$TRAVIS_BUILD_DIR
+    
+    Custom Environment Variables:
+    -----------------------------
+    APP_DIR=$APP_DIR
+    QUEUE_DIR=$QUEUE_DIR
+
+    EOF
   - ls -al $TRAVIS_BUILD_DIR
   - ls -al $APP_DIR
   - ls -al $QUEUE_DIR
