@@ -10,14 +10,21 @@ and storing those into a data lake (AWS S3).
 
 ![Graph](images/dockerflaskapi.png)
 
+- Implement s3fs with rexrey docker-plugin [https://rexray.readthedocs.io/en/stable/user-guide/schedulers/docker/plug-ins/aws/#aws-s3fs](https://rexray.readthedocs.io/en/stable/user-guide/schedulers/docker/plug-ins/aws/#aws-s3fs)
+- docker plugins [https://docs.docker.com/engine/extend/plugin_api/](https://docs.docker.com/engine/extend/plugin_api/)
+
 ## Prerequisites
 
 + Pyenv
 + Pipenv integrated with Pyenv
 + Python Version 3.6.9
 + Docker installed [official Docker docs](https://docs.docker.com/)
++ Docker-Compose
++ RexRay Docker Plugin s3fs [https://rexray.readthedocs.io/en/stable/](https://rexray.readthedocs.io/en/stable/)
 
 ---
+
+
 
 **NOTE:** Currently, Celery will fail on Python 3.7 due to conflicting 
 naming of packages using `async`, which is now a keyword in Python. 
@@ -28,23 +35,23 @@ Temporarily downgraded to `3.6.9` until solved.
 
 ---
 
-**NOTE:** For demonstration purposes, this project assumes the [serverless base api](https://github.com/olmax99/serverlessbaseapi) 
+**NOTE:** For demonstration purposes, this project assumes the [https://github.com/olmax99/serverlessbaseapi](https://github.com/olmax99/serverlessbaseapi) 
 project as the data source and to be up and running.
 
 ### 1. Preparing the project environment
 
-In the directory  `dockerflaskapi/loansapp`:
+In the directory  `dockerflaskapi/webflaskapi`:
 
 ```
 $ pipenv install
 $ pipenv shell
 
-(loansapp)$ pipenv install Flask
-(loansapp)$ pipenv install flask-restplus
-(loansapp)$ pipenv install flask-redis
-(loansapp)$ pipenv install sqlalchemy
-(loansapp)$ pipenv install psycopg2
-(loansapp)$ pipenv install pytest
+(webflaskapi)$ pipenv install Flask
+(webflaskapi)$ pipenv install flask-restplus
+(webflaskapi)$ pipenv install flask-redis
+(webflaskapi)$ pipenv install sqlalchemy
+(webflaskapi)$ pipenv install psycopg2
+(webflaskapi)$ pipenv install pytest
 
 
 ```
@@ -52,9 +59,9 @@ $ pipenv shell
 In PyCharm:
 
 In PyCharm > Settings > Project Interpreter:
-+ Verify that the Project Interpreter `Pipenv(loansapp)` is selected.
++ Verify that the Project Interpreter `Pipenv(webflaskapi)` is selected.
 
-*NOTE:*   PyCharm should be opened with the loansapp directory as the
+*NOTE:*   PyCharm should be opened with the webflaskapi directory as the
   top folder. Otherwise the pipenv interpreter might behave in an 
   unexpected way.
 
@@ -68,7 +75,7 @@ In PyCharm > Tools > Python Integrated Tools > Testing
   creating a new `Pipfile.lock`.
 
 
-### 2. Create the database credential files
+### 2. Create environment credentials
 
 There are two files containing the database access credentials that 
 need to be created manually.
@@ -189,23 +196,23 @@ the change following files:
 ```
 # In uwsgi.ini replace the following line:
 
-# module = loansapi.api
+# module = flaskapi.api
 module = <your project>.api
 
 
 # In docker-compose.development.yml
 environment:
-  # - FLASK_APP=loansapi/api.py
+  # - FLASK_APP=flaskapi/api.py
   - FLASK_APP=<your project>/api.py
 
 #In .travis.yml change the environment variables:
 env:
-  # - APP_DIR="$TRAVIS_BUILD_DIR/loansapp"
+  # - APP_DIR="$TRAVIS_BUILD_DIR/webflaskapi"
   - APP_DIR="$TRAVIS_BUILD_DIR/<your project>"
 
 # Rename the parent directory
-$ cp -r loansapp <your project>
-$ rm -r loansapp
+$ cp -r webflaskapi <your project>
+$ rm -r webflaskapi
 
 ```
 
@@ -217,8 +224,127 @@ directories, since all import statements need to be changed along the way.
 The flask docker is based on a project from *Sebastián Ramírez* [uwsgi-nginx-flask-docker](https://github.com/tiangolo/uwsgi-nginx-flask-docker). 
 
 A few adjustments have been made along the way, but all configuration and
-general instruction references are holding for this project, too.  
+general instruction references are holding for this project, too.
 
+### Install RexRay s3fs Docker Plugin
+
+- Debian Buster
+- Linux 4.19.0-5-amd64 #1 SMP Debian 4.19.37-5+deb10u2 (2019-08-08) x86_64 GNU/Linux
+
+#### 1. Install RexRay binaries manually
+
+[https://rexray.readthedocs.io/en/latest/user-guide/installation/](https://rexray.readthedocs.io/en/latest/user-guide/installation/)
+
+```
+$ curl -sSL https://rexray.io/install | sh -s -- stable
+
+# verify that the client is installed
+$ rexray --help
+
+# verify that Rexrayay volume is connected  <-- NOTE: AT THIS POINT THIS WILL FAIL!!
+# Use the DEBUG function in order to identify the global target directory for the config.yml
+$ rexray volume ls -l debug
+
+# expected
+# /home/user/.rexray/etc/config.yml
+
+```
+
+#### 2. Create RexRay config.yml
+
+Conduct [https://rexray.readthedocs.io/en/stable/user-guide/servers/libstorage/](https://rexray.readthedocs.io/en/stable/user-guide/servers/libstorage/) for more advanced
+libstorage configurations.
+
+Use a webform at  [https://rexrayconfig.cfapps.io/](https://rexrayconfig.cfapps.io/)
+or create manually:
+
+```
+rexray:
+  logLevel: info
+libstorage:
+  logging:
+    level: info
+  service: s3fs
+  integration:
+    volume:
+      operations:
+        create:
+          default:
+            size: 1
+s3fs:
+  accessKey: ***
+  secretKey: ***
+  region: <your region>
+
+```
+
+```
+# Verify that volume is connected to account
+$ rexray volume ls -l debug
+
+# You should see all s3 buckets listet in your target account
+
+
+```
+
+#### 3. Install RexRay plugin
+
+- Ensure that the RexRay kernel modul is running
+
+```
+$ sudo service rexray status
+# active (running)
+
+docker plugin install rexray/s3fs \
+  S3FS_ACCESSKEY=*** \
+  S3FS_SECRETKEY=***
+  
+# Verify install
+$ docker plugin ls
+
+# ID                  NAME                 DESCRIPTION                                     ENABLED
+# 5ii5t3e34n8i        rexray/s3fs:latest   REX-Ray FUSE Driver for Amazon Simple Storag…   true
+
+```
+
+**NOTE:** Without the keys you will get a `rexray.sock error`.
+
+#### 4. Run a docker with s3fs volume driver
+
+```
+# All permanent rexrey connected buckets will now be displaed as docker volumes
+$ docker volume ls
+
+# Create a bucket, rexray volume and docker volume using custom config
+$ rexray volume create -c ~/.rexray/etc/config.yml test-rexray-local-6281 
+
+# Confirm action
+$ docker volume ls
+$ docker volume inspect test-rexray-local-6281
+$ docker run -ti -v test-rexray-local-6281:/data nginx:latest mount | grep "/data"
+
+# or enter bucket
+$ docker run -ti -v test-rexray-local-6281:/data nginx:latest
+
+```
+
+---
+
+**NOTE**:
+1. Always use `/data` in docker volume, since this is default config for rexray
+2. Bucket will be PUBLIC by default - CHANGE IF NECESSARY!!
+
+#### 5. Delete test bucket
+
+```
+$ docker volume rm test-rexray-local-6281
+
+```
+
+---
+
+**NOTE:** At this point in time tmy custom region is not picked up, but instead always
+`US East (N. Virginia)`. For basic functionality it is not of concern.
 
 ## Author
 
