@@ -6,9 +6,10 @@ services:
       - .env.web.dev
     volumes:
       - './webflaskapi:/app'
-      # shared volume with celery worker  
-      # - $PWD/webflaskapi/data:/app/data
+      # shared volume with celery worker
       - s3fs:/app/data
+      # uncomment for ignoring s3fs plugin
+      # - $PWD/webflaskapi/data:/app/data
     ports:
       - "80:5000"
     environment:
@@ -29,8 +30,10 @@ services:
     env_file:
       - .env.worker.dev
     volumes:
-      # - $PWD/webflaskapi/data:/queue/data
+      # shared volume with flask web api
       - s3fs:/queue/data
+      # uncomment for ignoring s3fs plugin  
+      # - $PWD/webflaskapi/data:/queue/data
     environment:
       - C_FORCE_ROOT=true
     depends_on:
@@ -59,8 +62,8 @@ services:
 volumes:
     redis_data:
       external:
-        name: redis_flaskapi_data
+        name: flaskapi-dev-redis-broker-data
     s3fs:
       external:
-        name: test-rexray-1111
+        name: flaskapi-dev-rexray-data
 

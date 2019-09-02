@@ -1,7 +1,7 @@
 # Docker Flask API [![Build Status](https://travis-ci.org//olmax99/dockerflaskapi.png)](https://travis-ci.org//olmax99/dockerflaskapi)
 
 This is a web API project with a capability of distributed background 
-workers. Its main purpose is to read larger datasets from API endpoits
+workers. Its main purpose is to read larger datasets from API endpoints
 and storing those into a data lake (AWS S3).
 
 --- 
@@ -12,18 +12,20 @@ and storing those into a data lake (AWS S3).
 
 - Implement s3fs with rexrey docker-plugin [https://rexray.readthedocs.io/en/stable/user-guide/schedulers/docker/plug-ins/aws/#aws-s3fs](https://rexray.readthedocs.io/en/stable/user-guide/schedulers/docker/plug-ins/aws/#aws-s3fs)
 - docker plugins [https://docs.docker.com/engine/extend/plugin_api/](https://docs.docker.com/engine/extend/plugin_api/)
+- Create role/user for rexray, replace latest with fixed version
+- Do Tutorial [https://aws.amazon.com/blogs/compute/amazon-ecs-and-docker-volume-drivers-amazon-ebs/](https://aws.amazon.com/blogs/compute/amazon-ecs-and-docker-volume-drivers-amazon-ebs/)
 
 ## Prerequisites
 
-+ Pyenv
-+ Pipenv integrated with Pyenv
+For local development, the following components are required on the local machine:
+
++ Pipenv
 + Python Version 3.6.9
 + Docker installed [official Docker docs](https://docs.docker.com/)
 + Docker-Compose
 + RexRay Docker Plugin s3fs [https://rexray.readthedocs.io/en/stable/](https://rexray.readthedocs.io/en/stable/)
 
 ---
-
 
 
 **NOTE:** Currently, Celery will fail on Python 3.7 due to conflicting 
@@ -94,7 +96,7 @@ $ vim .env.web.dev
 REDIS_URI=redis://:super_secret2@redis.flaskapi:6379/0
 CELERY_BROKER_URL=redis://:super_secret2@redis.flaskapi:6379/0
 CELERY_RESULT_BACKEND=redis://:super_secret2@redis.flaskapi:6379/0
-PERMITS_URL=<cf-apigateway>                               <-- Get from 'serverless base api' project
+PERMITS_URL=<cfn-apigateway-public-url>                   <-- Get from 'serverless base api' project
 PERMITS_KEY=<x-api-key>                                   <-- Get from 'serverless base api' project
 
 $ vim .env.worker.dev
@@ -134,7 +136,7 @@ in detached mode
 #### 2. Build and run the docker image in development
 
 ```
-$ docker-compose -f docker-compose.development.yml up --build
+$ docker-compose -f docker-compose.development.yml up -d --build
 
 ```
 
@@ -250,10 +252,13 @@ $ rexray volume ls -l debug
 
 ```
 
-#### 2. Create RexRay config.yml
+#### 2. Create RexRay client config.yml
 
 Conduct [https://rexray.readthedocs.io/en/stable/user-guide/servers/libstorage/](https://rexray.readthedocs.io/en/stable/user-guide/servers/libstorage/) for more advanced
 libstorage configurations.
+
+
+**NOTE**: THIS IS THE CLIENT SIDE CONFIG IN `/home/user/.rexray/etc/config.yml`!!
 
 Use a webform at  [https://rexrayconfig.cfapps.io/](https://rexrayconfig.cfapps.io/)
 or create manually:
@@ -274,7 +279,7 @@ libstorage:
 s3fs:
   accessKey: ***
   secretKey: ***
-  region: <your region>
+  # region: <your region> DO NOT MESS WITH REGION FOR THE MOMENT
 
 ```
 
@@ -289,21 +294,24 @@ $ rexray volume ls -l debug
 
 #### 3. Install RexRay plugin
 
-- Ensure that the RexRay kernel modul is running
+- Ensure that the RexRay serverside driver modul is running
+- YOU NEED TO HAVE A FILE IN `/etc/rexray/config.yml` (Note this is NOT the client side config file!!)
 
 ```
 $ sudo service rexray status
 # active (running)
+# In case it is not active
+$ sudo systemctl start rexray
 
-docker plugin install rexray/s3fs \
+docker plugin install rexray/s3fs:0.11.4 \
   S3FS_ACCESSKEY=*** \
-  S3FS_SECRETKEY=***
+  S3FS_SECRETKEY=*** 
   
 # Verify install
 $ docker plugin ls
 
 # ID                  NAME                 DESCRIPTION                                     ENABLED
-# 5ii5t3e34n8i        rexray/s3fs:latest   REX-Ray FUSE Driver for Amazon Simple Storag…   true
+# 5ii5t3e34n8i        rexray/s3fs:0.11.4   REX-Ray FUSE Driver for Amazon Simple Storag…   true
 
 ```
 
@@ -312,16 +320,22 @@ $ docker plugin ls
 #### 4. Run a docker with s3fs volume driver
 
 ```
-# All permanent rexrey connected buckets will now be displaed as docker volumes
+# All permanent rexray connected buckets will now be displaed as docker volumes
 $ docker volume ls
 
-# Create a bucket, rexray volume and docker volume using custom config
-$ rexray volume create -c ~/.rexray/etc/config.yml test-rexray-local-6281 
+# Create a bucket, and docker rexray volume
+$ docker volume create --driver rexray/s3fs:0.11.4 --name test-rexray-local-6281
 
 # Confirm action
 $ docker volume ls
 $ docker volume inspect test-rexray-local-6281
 $ docker run -ti -v test-rexray-local-6281:/data nginx:latest mount | grep "/data"
+
+```
+# Expected
+s3fs on /data type fuse.s3fs (rw,nosuid,nodev,relatime,user_id=0,group_id=0)
+
+```
 
 # or enter bucket
 $ docker run -ti -v test-rexray-local-6281:/data nginx:latest
@@ -345,6 +359,7 @@ $ docker volume rm test-rexray-local-6281
 
 **NOTE:** At this point in time tmy custom region is not picked up, but instead always
 `US East (N. Virginia)`. For basic functionality it is not of concern.
+
 
 ## Author
 
