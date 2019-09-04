@@ -1,0 +1,81 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Parameters:
+  CFNDatabaseName:
+    Type: String
+    # Athena only supports alphanumeric and underscore characters.
+    AllowedPattern: "^[a-zA-Z0-9]+[a-zA-Z0-9_]+[a-zA-Z0-9]+$"
+    Default: dev_flaskapi_01
+  CFNTableName01:
+    Type: String
+    AllowedPattern: "^[a-zA-Z0-9]+[a-zA-Z0-9_]+[a-zA-Z0-9]+$"
+    Default: dev_permits_01
+
+# Resources section defines metadata for the Data Catalog
+Resources:
+# Create an AWS Glue database and table definition
+  CFNDatabaseFlaskapi:
+    Type: AWS::Glue::Database
+    Properties:
+      CatalogId: !Ref AWS::AccountId   
+      DatabaseInput:
+        # The name of the database is defined in the Parameters section above
+        Name: !Ref CFNDatabaseName	
+        Description: Database to hold tables for permits data
+        LocationUri: s3://flaskapi-dev-private-eu-central-1/
+        # Parameters: Leave AWS database parameters blank
+  CFNTablePermits:
+    DependsOn: CFNDatabaseFlaskapi
+    Type: AWS::Glue::Table
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseName: !Ref CFNDatabaseName
+      TableInput:
+        Name: !Ref CFNTableName01
+        Description: Dataset containing applications for SF Housing Permits
+        DateAdded: <cfn.current datetime>
+        TableType: ???
+        # ONLY NEEDED WITH CRAWLER
+        # Connection: ???
+        # Parameters: {
+        #   "classification": "parquet"
+        #   }
+        PartitionKeys:
+        # Data is partitioned by day of upload
+        - Name: _partitiontime
+          Type: timestamp
+        StorageDescriptor:
+          OutputFormat: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+          Columns:
+          - Name: application_number
+            Type: string
+          - Name: permit_record_id
+            Type: integer
+          - Name: estate_address
+            Type: string
+          - Name: permit_description
+            Type: string
+          - Name: permit_est_cost
+            Type: float
+          - Name: permit_expiration_date
+            Type: date
+          - Name: permit_file_date
+            Type: date
+          - Name: revised_cost
+            Type: float
+          - Name: application_status
+            Type: string
+          - Name: status_date
+            Type: string
+          - Name: estate_existing_use
+            Type: string
+          - Name: estate_proposed_use
+            Type: string
+          InputFormat: org.apache.hadoop.mapred.???
+          Location: s3://flaskapi-dev-private-eu-central-1/parquet/
+          SerdeInfo:
+            Parameters:
+              ???
+            SerializationLibrary: ???
+
+          
+
