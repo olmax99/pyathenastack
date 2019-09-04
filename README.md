@@ -24,6 +24,7 @@ For local development, the following components are required on the local machin
 + Docker installed [official Docker docs](https://docs.docker.com/)
 + Docker-Compose
 + RexRay Docker Plugin s3fs [https://rexray.readthedocs.io/en/stable/](https://rexray.readthedocs.io/en/stable/)
++ aws-cli installed [https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-install.html](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-install.html)
 
 ---
 
@@ -160,6 +161,24 @@ $ docker logs -f dockerflaskapi_worker.flaskapi_1
 
 1. The Swagger Api documentation can be accessed in your browser at `localhost:80`.
 2. Flower can be accessed on `localhost:5555`
+
+### 4. Create a development table in AWS Athena
+
+```
+$ aws cloudformation validate-template --template-body file://cloudformation.development.glue.yaml
+
+$ aws cloudformation create-stack --stack-name dev-flaskapi-01 file://cloudformation.development.glue.yaml
+
+```
+
+
+### 5. Delete resources
+
+```
+$ aws cloudformation list-stacks --stack-status-filter CREATE_COMPLETE
+$ aws cloudformation delete-stack --stack-name dev-flaskapi-01
+
+```
 
 
 ## Running the tests

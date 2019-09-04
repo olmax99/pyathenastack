@@ -1,0 +1,22 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Parameters:
+  CFNDatabaseName:
+    Type: String
+    # Athena only supports alphanumeric and underscore characters.
+    AllowedPattern: "^[a-zA-Z0-9]+[a-zA-Z0-9_]+[a-zA-Z0-9]+$"
+    Default: dev_flaskapi_01
+
+# Resources section defines metadata for the Data Catalog
+Resources:
+# Create an AWS Glue database
+  CFNDatabasePermits:
+    Type: AWS::Glue::Database
+    Properties:
+      # The database is created in the Data Catalog for your account
+      CatalogId: !Ref AWS::AccountId   
+      DatabaseInput:
+        # The name of the database is defined in the Parameters section above
+        Name: !Ref CFNDatabaseName	
+        Description: Database to hold tables for permits data
+        LocationUri: s3://flaskapi-dev-private-eu-central-1/permits/2016/parquet/
+        # Parameters: Leave AWS database parameters blank

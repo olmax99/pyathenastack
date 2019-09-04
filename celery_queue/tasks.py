@@ -1,5 +1,6 @@
 import os
 import time
+from datetime import datetime
 import logging
 
 # from redis import RedisError
@@ -25,7 +26,7 @@ def add(x: int, y: int) -> int:
     time.sleep(5)
     return x + y
 
-
+# TODO: Add schema verfification for input variables
 @celery.task(name='tasks.getsbapermits')
 def get_sba_permits(job_id: str, long_job_id: str):
     sync_athena = PermitsAthena(current_uuid=job_id)

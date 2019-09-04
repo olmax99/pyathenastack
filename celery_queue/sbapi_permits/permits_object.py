@@ -25,8 +25,10 @@ class PermitsAthena(object):
     """
     def __init__(self,
                  current_uuid=None,
+                 partitiontime=None,
                  base_data_dir='/queue/data/'):
         self.job_uuid = current_uuid
+        self._partitiontime = partitiontime
         self.base_data_dir = base_data_dir
 
     def __repr__(self):
@@ -83,8 +85,7 @@ class PermitsAthena(object):
                 mapped_pandas_df = self.map_df_to_parquet(chunk_df)
                 mapped_pandas_df.to_parquet(f"{parquet_file}_{_i:03}.parquet", engine='pyarrow', compression=None)
 
-    @staticmethod
-    def map_df_to_parquet(df_in):
+    def map_df_to_parquet(self, df_in):
         df_map = df_in.copy(deep=True)
         df_map.rename(columns={'estimated_cost': 'permit_est_cost',
                                'expiration_date': 'permit_expiration_date',
@@ -96,7 +97,8 @@ class PermitsAthena(object):
                                'existing_use': 'estate_existing_use',
                                'status': 'application_status'},
                       inplace=True)
-
+        # Add custom TABLE PARTITION
+        df_map['_partitiontime'] = self._partitiontime
         # Type mapping
         df_map['application_number'] = df_map['application_number'].astype('str', errors='ignore').replace('nan', pd.np.nan)
         df_map['permit_record_id'] = pd.to_numeric(df_map['permit_record_id'], downcast='integer', errors='coerce')

@@ -27,7 +27,7 @@ class PermitsReport(Resource):
             current_app.logger.info(f'WebApi: create new job_id "{sync_runner_job_id}"')
 
             task = celery.send_task('tasks.getsbapermits',
-                                    args=[new_job_uuid, sync_runner_job_id],
+                                    args=[new_job_uuid, sync_runner_job_id, called_at],
                                     kwargs={})
 
             current_app.logger.info(f"WebApi: Start background job with id {task.id}.")
