@@ -9,10 +9,55 @@ Parameters:
     Type: String
     AllowedPattern: "^[a-zA-Z0-9]+[a-zA-Z0-9_]+[a-zA-Z0-9]+$"
     Default: dev_permits_01
+  CFNDataStoreName:
+    Description: Name of Data Store as source for Athena
+    Type: String
+    AllowedPattern: "^[a-zA-Z0-9]+[a-zA-Z0-9-]+[a-zA-Z0-9]+$"
+    Default: flaskapi-dev-datastore-eu-central-1
+  # CreationDate:
+  #   Description: Date and time of stack creation
+  #   Type: String
+  #   Default: 1979-01-01 00:00:00
+  #   AllowedPattern: "^\\d{4}(-\\d{2}){2} (\\d{2}:){2}\\d{2}$"
 
 # Resources section defines metadata for the Data Catalog
 Resources:
-# Create an AWS Glue database and table definition
+  CFNDataStore:
+    Type: AWS::S3::Bucket
+    Properties: 
+      AccessControl: Private
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+        - ServerSideEncryptionByDefault: 
+            SSEAlgorithm: AES256
+      BucketName: !Ref CFNDataStoreName
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: True
+        BlockPublicPolicy: True
+        IgnorePublicAcls: True
+        RestrictPublicBuckets: True
+      # advanced list features
+      # InventoryConfigurations: 
+      #  - InventoryConfiguration
+      # LifecycleConfiguration: 
+      #   LifecycleConfiguration
+   
+   # DataStorePermission:
+   #   Type: AWS::Athena::Permission
+   #   Properties:
+   #     Action: 'lambda:InvokeFunction'
+   #     FunctionName: !GetAtt LoadPermits.Arn
+   #     # FunctionName: !Ref LoadPermits
+   #     Principal: s3.amazonaws.com
+   #     SourceAccount: !Ref "AWS::AccountId"
+   #     # Intrinsic function along with stack parameters is solving the
+   #     # problem of circular dependency
+   #     SourceArn: !Join
+   #       - ''
+   #       - - 'arn:aws:s3:::'
+   #         - !Sub '${BucketName}'
+  
+  # Create an AWS Glue database and table definition
   CFNDatabaseFlaskapi:
     Type: AWS::Glue::Database
     Properties:
@@ -21,8 +66,10 @@ Resources:
         # The name of the database is defined in the Parameters section above
         Name: !Ref CFNDatabaseName	
         Description: Database to hold tables for permits data
-        LocationUri: s3://flaskapi-dev-private-eu-central-1/
+        # LocationUri seems to be optional - locations are defined in tables
+        # LocationUri: s3://flaskapi-dev-private-eu-central-1/
         # Parameters: Leave AWS database parameters blank
+
   CFNTablePermits:
     DependsOn: CFNDatabaseFlaskapi
     Type: AWS::Glue::Table
@@ -32,19 +79,21 @@ Resources:
       TableInput:
         Name: !Ref CFNTableName01
         Description: Dataset containing applications for SF Housing Permits
-        DateAdded: <cfn.current datetime>
-        TableType: ???
+        # DateAdded: !Ref CreationDate
+        TableType: EXTERNAL_TABLE
         # ONLY NEEDED WITH CRAWLER
         # Connection: ???
-        # Parameters: {
-        #   "classification": "parquet"
-        #   }
+        Parameters: {
+        "classification": "parquet"
+        }
         PartitionKeys:
-        # Data is partitioned by day of upload
-        - Name: _partitiontime
-          Type: timestamp
+        # Data is partitioned by day of upload, NOTE: ^_ will be ignored
+        # TODO: try partitiontime_
+        # s3://flaskapi-dev-datastore-eu-central-1/permits/parquet/partitiontime=2019-09-06
+        - Name: partitiontime
+          Type: string
         StorageDescriptor:
-          OutputFormat: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+          OutputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat
           Columns:
           - Name: application_number
             Type: string
@@ -70,12 +119,33 @@ Resources:
             Type: string
           - Name: estate_proposed_use
             Type: string
-          InputFormat: org.apache.hadoop.mapred.???
-          Location: s3://flaskapi-dev-private-eu-central-1/parquet/
+          InputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat
+          Location: s3://flaskapi-dev-datastore-eu-central-1/permits/parquet/
           SerdeInfo:
-            Parameters:
-              ???
-            SerializationLibrary: ???
+            # Parameters: ??? (probably not needed for parquet)
+            SerializationLibrary: org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe
+
+  # Partition 1
+  # Create an AWS Glue partition  
+  CFNPartitionDate20190906:
+    DependsOn: CFNTablePermits
+    Type: AWS::Glue::Partition
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseName: !Ref CFNDatabaseName
+      TableName: !Ref CFNTableName01
+      PartitionInput:
+        Values:
+        - "2019-09-06"
+        StorageDescriptor:
+          OutputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat
+          Columns:
+          - Name: mon
+            Type: bigint
+          InputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat
+          Location: s3://flaskapi-dev-datastore-eu-central-1/permits/parquet/partitiontime=2019-09-06/
+          SerdeInfo:
+            SerializationLibrary: org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe
 
           
 

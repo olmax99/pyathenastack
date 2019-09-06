@@ -98,7 +98,8 @@ class PermitsAthena(object):
                                'status': 'application_status'},
                       inplace=True)
         # Add custom TABLE PARTITION
-        df_map['_partitiontime'] = self._partitiontime
+        # df_map['partitiontime'] = self._partitiontime
+        # df_map['partitiontime'] = pd.to_datetime(df_map['partitiontime'], errors='coerce').dt.date
         # Type mapping
         df_map['application_number'] = df_map['application_number'].astype('str', errors='ignore').replace('nan', pd.np.nan)
         df_map['permit_record_id'] = pd.to_numeric(df_map['permit_record_id'], downcast='integer', errors='coerce')
@@ -112,5 +113,10 @@ class PermitsAthena(object):
         df_map['status_date'] = df_map['status_date'].astype('str', errors='ignore').replace('nan', pd.np.nan)
         df_map['estate_existing_use'] = df_map['estate_existing_use'].astype('str', errors='ignore').replace('nan', pd.np.nan)
         df_map['estate_proposed_use'] = df_map['estate_proposed_use'].astype('str', errors='ignore').replace('nan', pd.np.nan)
+        # Keep order for athena
+        df_map = df_map[['application_number', 'permit_record_id', 'estate_address',
+                         'permit_description', 'permit_est_cost', 'permit_expiration_date', 'permit_file_date',
+                         'revised_cost', 'application_status', 'status_date', 'estate_existing_use',
+                         'estate_proposed_use']]
 
         return df_map

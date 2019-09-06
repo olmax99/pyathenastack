@@ -28,8 +28,8 @@ def add(x: int, y: int) -> int:
 
 # TODO: Add schema verfification for input variables
 @celery.task(name='tasks.getsbapermits')
-def get_sba_permits(job_id: str, long_job_id: str):
-    sync_athena = PermitsAthena(current_uuid=job_id)
+def get_sba_permits(job_id: str, long_job_id: str, dt_called):
+    sync_athena = PermitsAthena(current_uuid=job_id, partitiontime=dt_called)
 
     fac = utilities.HookFactory()
     reader = fac.create(type_hook='http', chunk_size=200)

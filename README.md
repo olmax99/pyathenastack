@@ -120,8 +120,7 @@ There are two ways of running the app in development mode. By default
 the `web` container will run in sleep, and flask is invoked in debug.
 
 1. If you want to run the Flask app directly from nginx/uwsgi, comment 
-out the line starting with `command: ...` in 
-`dockerflaskapi/docker-compose.development.yml`:
+out the line starting with `command: ...` in `dockerflaskapi/docker-compose.development.yml`:
 
 ```
 # command: pipenv run flask run --host=0.0.0.0 --port=5000
@@ -137,6 +136,15 @@ in detached mode
 #### 2. Build and run the docker image in development
 
 ```
+# Verify that rexray docker plugin is set up correctly
+$ docker run -ti -v flaskapi-dev-rexray-data:/data nginx:latest mount | grep "/data"
+
+# EXPECTED:
+# s3fs on /data type fuse.s3fs (rw,nosuid,nodev,relatime,user_id=0,group_id=0)
+
+# ----------------------------------------------------------------------------------
+
+
 $ docker-compose -f docker-compose.development.yml up -d --build
 
 ```
@@ -165,9 +173,16 @@ $ docker logs -f dockerflaskapi_worker.flaskapi_1
 ### 4. Create a development table in AWS Athena
 
 ```
-$ aws cloudformation validate-template --template-body file://cloudformation.development.glue.yaml
+$ aws cloudformation validate-template --template-body file://cloudformation.development.athena.yml
 
-$ aws cloudformation create-stack --stack-name dev-flaskapi-01 file://cloudformation.development.glue.yaml
+$ aws cloudformation create-stack --stack-name flaskapi-dev-athena-01 \
+  --template-body file://cloudformation.development.athena.yml 
+  
+  
+# In Athena Queries
+MSCK REPAIR TABLE table dev_permits_01
+SHOW PARTITIONS dev_permits_01
+SELECT * FROM dev_flaskapi_01.dev_permits_01 WHERE partitiontime='2019-09-06' LIMIT 10;
 
 ```
 
