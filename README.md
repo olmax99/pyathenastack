@@ -136,7 +136,14 @@ in detached mode
 #### 2. Build and run the docker image in development
 
 ```
+# ----------------------------------------------------------------------------------
 # Verify that rexray docker plugin is set up correctly
+
+$ docker plugin ls
+
+# EXPECTED:
+# 1e8d8739nm  rexray/s3fs:0.11.4   REX-Ray FUSE Driver for Amazon Simple Storag…   true
+
 $ docker run -ti -v flaskapi-dev-rexray-data:/data nginx:latest mount | grep "/data"
 
 # EXPECTED:
@@ -145,7 +152,7 @@ $ docker run -ti -v flaskapi-dev-rexray-data:/data nginx:latest mount | grep "/d
 # ----------------------------------------------------------------------------------
 
 
-$ docker-compose -f docker-compose.development.yml up -d --build
+$ docker-compose -f docker-compose.development.yml up --build
 
 ```
 

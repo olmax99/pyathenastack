@@ -98,7 +98,7 @@ Resources:
           - Name: application_number
             Type: string
           - Name: permit_record_id
-            Type: integer
+            Type: smallint
           - Name: estate_address
             Type: string
           - Name: permit_description
