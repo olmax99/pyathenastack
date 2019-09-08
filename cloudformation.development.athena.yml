@@ -1,11 +1,13 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Parameters:
   CFNDatabaseName:
+    Description: Name of container for Athena tables
     Type: String
     # Athena only supports alphanumeric and underscore characters.
     AllowedPattern: "^[a-zA-Z0-9]+[a-zA-Z0-9_]+[a-zA-Z0-9]+$"
     Default: dev_flaskapi_01
   CFNTableName01:
+    Description: Name of dev table permits
     Type: String
     AllowedPattern: "^[a-zA-Z0-9]+[a-zA-Z0-9_]+[a-zA-Z0-9]+$"
     Default: dev_permits_01
@@ -14,11 +16,6 @@ Parameters:
     Type: String
     AllowedPattern: "^[a-zA-Z0-9]+[a-zA-Z0-9-]+[a-zA-Z0-9]+$"
     Default: flaskapi-dev-datastore-eu-central-1
-  # CreationDate:
-  #   Description: Date and time of stack creation
-  #   Type: String
-  #   Default: 1979-01-01 00:00:00
-  #   AllowedPattern: "^\\d{4}(-\\d{2}){2} (\\d{2}:){2}\\d{2}$"
 
 # Resources section defines metadata for the Data Catalog
 Resources:
@@ -42,21 +39,6 @@ Resources:
       # LifecycleConfiguration: 
       #   LifecycleConfiguration
    
-   # DataStorePermission:
-   #   Type: AWS::Athena::Permission
-   #   Properties:
-   #     Action: 'lambda:InvokeFunction'
-   #     FunctionName: !GetAtt LoadPermits.Arn
-   #     # FunctionName: !Ref LoadPermits
-   #     Principal: s3.amazonaws.com
-   #     SourceAccount: !Ref "AWS::AccountId"
-   #     # Intrinsic function along with stack parameters is solving the
-   #     # problem of circular dependency
-   #     SourceArn: !Join
-   #       - ''
-   #       - - 'arn:aws:s3:::'
-   #         - !Sub '${BucketName}'
-  
   # Create an AWS Glue database and table definition
   CFNDatabaseFlaskapi:
     Type: AWS::Glue::Database
@@ -67,7 +49,6 @@ Resources:
         Name: !Ref CFNDatabaseName	
         Description: Database to hold tables for permits data
         # LocationUri seems to be optional - locations are defined in tables
-        # LocationUri: s3://flaskapi-dev-private-eu-central-1/
         # Parameters: Leave AWS database parameters blank
 
   CFNTablePermits:
@@ -81,8 +62,7 @@ Resources:
         Description: Dataset containing applications for SF Housing Permits
         # DateAdded: !Ref CreationDate
         TableType: EXTERNAL_TABLE
-        # ONLY NEEDED WITH CRAWLER
-        # Connection: ???
+        # TODO: Add compression
         Parameters: {
         "classification": "parquet"
         }
@@ -122,7 +102,6 @@ Resources:
           InputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat
           Location: s3://flaskapi-dev-datastore-eu-central-1/permits/parquet/
           SerdeInfo:
-            # Parameters: ??? (probably not needed for parquet)
             SerializationLibrary: org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe
 
   # Partition 1
