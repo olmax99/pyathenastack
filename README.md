@@ -76,7 +76,7 @@ In PyCharm > Tools > Python Integrated Tools > Testing
   creating a new `Pipfile.lock`.
 
 
-### 2. Create environment credentials
+### 2. Prepare the environment
 
 There are two files containing the database access credentials that 
 need to be created manually.
@@ -107,6 +107,14 @@ $ vim .env
 
 REDIS_PASSWD=super_secret2
 REDIS_URI=redis://:super_secret2@redis.flaskapi:6379/0
+
+```
+
+A s3fs compatible docker volume needs to be created.
+
+```
+# Will create an S3 bucket along with a docker rexray volume
+$ docker volume create --driver rexray/s3fs:0.11.4 --name flaskapi-dev-rexray-data
 
 ```
 
