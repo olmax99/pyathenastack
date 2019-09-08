@@ -1,8 +1,8 @@
 # Docker Flask API [![Build Status](https://travis-ci.org//olmax99/dockerflaskapi.png)](https://travis-ci.org//olmax99/dockerflaskapi)
 
 This is a web API project with a capability of distributed background 
-workers. Its main purpose is to read larger datasets from API endpoints
-and storing those into a data lake (AWS S3).
+workers for reading and storing larger datasets to AWS S3. It is combined 
+with a light-weight DWH system utilizing AWS Athena.
 
 --- 
 
@@ -10,6 +10,7 @@ and storing those into a data lake (AWS S3).
 
 ![Graph](images/dockerflaskapi.png)
 
+- Secure data in AWS Athena [https://docs.aws.amazon.com/athena/latest/ug/security.html](https://docs.aws.amazon.com/athena/latest/ug/security.html)
 - Use RexRay with ECS [https://aws.amazon.com/blogs/compute/amazon-ecs-and-docker-volume-drivers-amazon-ebs/](https://aws.amazon.com/blogs/compute/amazon-ecs-and-docker-volume-drivers-amazon-ebs/)
 
 ## Prerequisites
