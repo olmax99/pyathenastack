@@ -177,7 +177,7 @@ $ docker logs -f dockerflaskapi_worker.flaskapi_1
 1. The Swagger Api documentation can be accessed in your browser at `localhost:80`.
 2. Flower can be accessed on `localhost:5555`
 
-### 4. Create a development table in AWS Athena
+#### 4. Create a development table in AWS Athena
 
 ```
 $ aws cloudformation validate-template --template-body file://cloudformation.development.athena.yml
@@ -188,7 +188,7 @@ $ aws cloudformation create-stack --stack-name flaskapi-dev-athena-01 \
 ```
 
 
-### 5. Delete resources
+**Delete resources:**
 
 ```
 $ aws cloudformation list-stacks --stack-status-filter CREATE_COMPLETE
