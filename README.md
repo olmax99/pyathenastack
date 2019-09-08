@@ -184,12 +184,6 @@ $ aws cloudformation validate-template --template-body file://cloudformation.dev
 
 $ aws cloudformation create-stack --stack-name flaskapi-dev-athena-01 \
   --template-body file://cloudformation.development.athena.yml 
-  
-  
-# In Athena Queries
-MSCK REPAIR TABLE table dev_permits_01
-SHOW PARTITIONS dev_permits_01
-SELECT * FROM dev_flaskapi_01.dev_permits_01 WHERE partitiontime='2019-09-06' LIMIT 10;
 
 ```
 
