@@ -116,6 +116,19 @@ A s3fs compatible docker volume needs to be created.
 # Will create an S3 bucket along with a docker rexray volume
 $ docker volume create --driver rexray/s3fs:0.11.4 --name flaskapi-dev-rexray-data
 
+# Verify that rexray docker plugin is set up correctly
+
+$ docker plugin ls
+
+# EXPECTED:
+# 1e8d8739nm  rexray/s3fs:0.11.4   REX-Ray FUSE Driver for Amazon Simple Storag…   true
+
+$ docker run -ti -v flaskapi-dev-rexray-data:/data nginx:latest mount | grep "/data"
+
+# EXPECTED:
+# s3fs on /data type fuse.s3fs (rw,nosuid,nodev,relatime,user_id=0,group_id=0)
+
+
 ```
 
 ### 3. Run the project
@@ -142,22 +155,6 @@ in detached mode
 #### 2. Build and run the docker image in development
 
 ```
-# ----------------------------------------------------------------------------------
-# Verify that rexray docker plugin is set up correctly
-
-$ docker plugin ls
-
-# EXPECTED:
-# 1e8d8739nm  rexray/s3fs:0.11.4   REX-Ray FUSE Driver for Amazon Simple Storag…   true
-
-$ docker run -ti -v flaskapi-dev-rexray-data:/data nginx:latest mount | grep "/data"
-
-# EXPECTED:
-# s3fs on /data type fuse.s3fs (rw,nosuid,nodev,relatime,user_id=0,group_id=0)
-
-# ----------------------------------------------------------------------------------
-
-
 $ docker-compose -f docker-compose.development.yml up --build
 
 ```

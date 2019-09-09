@@ -1,19 +1,23 @@
+import json
 import os
 import uuid
 
 from datetime import datetime
 
 from flask import current_app
-from flask_restplus import Resource
+from flask_restplus import Namespace, Resource, reqparse
 # from redis import RedisError
 
-
 from flaskapi.core.worker import celery
+# from celery.result import AsyncResult
 # from flaskapi.api import redis_conn
 
+ns = Namespace('permits', description='A sample of SF housing permits')
 
+
+@ns.route('/report', endpoint='report')
 class PermitsReport(Resource):
-    def post(self):
+    def get(self):
         """
         This is the download of all Permits data exposed through the serverlessbaseapi
         :return: <current job meta data>, response.code, response.header
@@ -40,3 +44,20 @@ class PermitsReport(Resource):
                     'job_description': 'serverlessbaseapi Permits data',
                     'called_at': str(called_at),
                     }, 201, {'Content-Type': 'application/json'}
+
+
+# TODO: Schema and error handling!!
+@ns.route('/<task_id>')
+@ns.doc(params={'task_id': 'An ID'})
+class PermitsStateCheck(Resource):
+    def get(self, task_id):
+        """
+        Check the current state of a celery background task.
+        :return:
+        """
+        with current_app.app_context():
+            res = celery.AsyncResult(id=task_id)
+            result = res.get() if res.state == 'SUCCESS' else None
+
+            return {"state": f"{res.state}",
+                    "result": f"{result}"}
