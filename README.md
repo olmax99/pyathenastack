@@ -104,8 +104,8 @@ CELERY_BROKER_URL=redis://:super_secret2@redis.flaskapi:6379/0
 CELERY_RESULT_BACKEND=redis://:super_secret2@redis.flaskapi:6379/0
 PERMITS_URL=<cfn-apigateway-public-url>                   <-- Get from 'serverless base api' project
 PERMITS_KEY=<x-api-key>                                   <-- Get from 'serverless base api' project
-AWS_ACCESS_KEY_ID=$(aws --profile <dev name> configure get aws_access_key_id)
-AWS_SECRET_ACCESS_KEY=$(aws --profile <dev name> configure get aws_secret_access_key)
+AWS_ACCESS_KEY_ID=<aws access id>
+AWS_SECRET_ACCESS_KEY=<aws secret key>
 
 $ vim .env
 
