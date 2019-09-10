@@ -22,6 +22,7 @@ pandas = "*"
 pytest = "*"
 requests-mock = "*"
 pyarrow = "*"
+boto3 = "*"
 
 [requires]
 python_version = "3.6"

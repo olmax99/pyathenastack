@@ -27,7 +27,7 @@ class PermitsReport(Resource):
             new_job_uuid = str(uuid.uuid1())
             sync_runner_job_id = f"permits_{new_job_uuid}"
 
-            current_app.logger.info(f'WebApi: create new job_id "{sync_runner_job_id}"')
+            current_app.logger.info(f'WebApi: create new job_id "{sync_runner_job_id}" for "Get Permit Report".')
 
             res = celery.send_task('tasks.getsbapermits',
                                    args=[new_job_uuid, sync_runner_job_id, called_at],
@@ -74,21 +74,25 @@ class PermitsDataStore(Resource):
         :return:
         """
         with current_app.app_context():
-            target_partition = str(datetime.utcnow().date())
+            called_at = datetime.utcnow()
+            target_partition = str(called_at.date())
+            new_job_uuid = str(uuid.uuid1())
+
+            current_app.logger.info(f'WebApi: create new job_id {new_job_uuid} for "Copy source file to Data Store".')
             # Run background tasks
             # 1. Create boto3 s3 conn <-- move boto3 conn to hooks
             # 2. Check if file exists
             # use result.wait() <-- needs to be included in request result
             # (reason for background: simply boto3 part of hooks)
-            res = celery.send_task('tasks.verifyjobexists',
-                                   args=[job_id, target_partition],
+            res = celery.send_task('tasks.verifysourcefileexists',
+                                   args=[job_id],
                                    kwargs={})
-            try:
-                result = res.wait(timeout=2)
-            except celery.exceptions.TimeoutError as e:
-                current_app.logger.info(f"WebApi: Could not get result in time.\n {e}.")
-            except BaseException as e:
-                current_app.logger.info(f"WebApi: Unexpected error.\n {e}.")
+            # try:
+            res.wait(timeout=10)
+            # except celery.exceptions.TimeoutError as e:
+            #     current_app.logger.info(f"WebApi: Could not get result in time.\n {e}.")
+            # except BaseException as e:
+            #     current_app.logger.info(f"WebApi: Unexpected error.\n {e}.")
 
             # Run background task
             # Create boto3 glue conn
@@ -97,7 +101,9 @@ class PermitsDataStore(Resource):
             # 3. Move file to partition
             # Use chaining
 
-            return {'job_id': job_id,
+            return {'sync_runner_job_id': new_job_uuid,
                     'target_partition': f"/partitiontime='{target_partition}'",
-                    'source_file_found': f'{not result.failed()}'
+                    'source_file_path': f'/{job_id}.parquet',
+                    'source_file_found': f'{not res.failed()}',
+                    'called_at': str(called_at),
                     }, 201, {'Content-Type': 'application/json'}

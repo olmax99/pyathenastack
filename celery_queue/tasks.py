@@ -21,10 +21,9 @@ celery = Celery('tasks', broker=CELERY_BROKER_URL, backend=CELERY_RESULT_BACKEND
 logger = get_task_logger(__name__)
 
 
-@celery.task(name='tasks.add')
-def add(x: int, y: int) -> int:
-    time.sleep(5)
-    return x + y
+class TaskFailure(Exception):
+    pass
+
 
 # TODO: Add schema verfification for input variables
 @celery.task(name='tasks.getsbapermits')
@@ -32,7 +31,7 @@ def get_sba_permits(job_id: str, long_job_id: str, dt_called):
     sync_athena = PermitsAthena(current_uuid=job_id, partitiontime=dt_called)
 
     fac = utilities.HookFactory()
-    reader = fac.create(type_hook='http', chunk_size=200)
+    reader = fac.create(type_hook='http')
 
     # TODO: Handle task fail, error, incomplete
     target_url = os.getenv('PERMITS_URL', None)
@@ -51,9 +50,28 @@ def get_sba_permits(job_id: str, long_job_id: str, dt_called):
                                            log=logger)
 
     except RuntimeError as e:
-        logger.info(f'Task: {e}. Verify that "{target_url}" is the correct target url.')
+        logger.info(f'Task: Verify that "{target_url}" is the correct target url.')
     except BaseException as e:
         raise e
 
     # TODO: Implement Standard response
     return "FINISHED."
+
+
+@celery.task(name='tasks.verifysourcefileexists')
+def verify_source_file_exists(job_id: str):
+    fac = utilities.HookFactory()
+    s3_hook = fac.create(type_hook='s3').create_client(custom_region='us-east-1')
+    logger.info(f"Task: s3 client: {s3_hook}")
+
+    # sync_athena = PermitsAthena(current_uuid=job_id, s3client=s3_hook)
+    # result = sync_athena.confirm_key_exist(log=True)
+
+    object_summary = s3_hook.head_object(Bucket='flaskapi-dev-rexray-data',
+                                         Key=f'data/{job_id}.parquet')
+
+    logger.info(f"Task result: {object_summary}")
+    if object_summary is not None:
+        return "FINISHED."
+    else:
+        logger.info("Task: Key not found.")

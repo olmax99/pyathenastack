@@ -76,10 +76,12 @@ In PyCharm > Tools > Python Integrated Tools > Testing
   creating a new `Pipfile.lock`.
 
 
-### 2. Prepare the environment
+### 2. Prepare the environment files and external tools
 
-There are two files containing the database access credentials that 
-need to be created manually.
+#### a. Docker-compose environment files
+
+There are two files required that are containing the database access credentials 
+that need to be created manually.
 
 From the terminal:
 
@@ -95,13 +97,15 @@ $ vim .env.web.dev
 REDIS_URI=redis://:super_secret2@redis.flaskapi:6379/0
 CELERY_BROKER_URL=redis://:super_secret2@redis.flaskapi:6379/0
 CELERY_RESULT_BACKEND=redis://:super_secret2@redis.flaskapi:6379/0
-PERMITS_URL=<cfn-apigateway-public-url>                   <-- Get from 'serverless base api' project
-PERMITS_KEY=<x-api-key>                                   <-- Get from 'serverless base api' project
 
 $ vim .env.worker.dev
 
 CELERY_BROKER_URL=redis://:super_secret2@redis.flaskapi:6379/0
 CELERY_RESULT_BACKEND=redis://:super_secret2@redis.flaskapi:6379/0
+PERMITS_URL=<cfn-apigateway-public-url>                   <-- Get from 'serverless base api' project
+PERMITS_KEY=<x-api-key>                                   <-- Get from 'serverless base api' project
+AWS_ACCESS_KEY_ID=$(aws --profile <dev name> configure get aws_access_key_id)
+AWS_SECRET_ACCESS_KEY=$(aws --profile <dev name> configure get aws_secret_access_key)
 
 $ vim .env
 
@@ -109,6 +113,30 @@ REDIS_PASSWD=super_secret2
 REDIS_URI=redis://:super_secret2@redis.flaskapi:6379/0
 
 ```
+
+#### b. Aws credentials file
+
+**NOTE:** The IAM access credentials need to be created manually. It is
+recommended to assign a programatic access to a new developer user with the
+following maximum of permission policies:
+
+- AmazonS3FullAccess
+- AmazonAthenaFullAccess
+
+```
+$ aws configure --profile <dev name>
+
+# AWS Access Key ID [None]: <dev access id>
+# AWS Secret Access Key [None]: <dev access key>
+# Default region name [None]: eu-central-1
+# Default output format [None]: json
+
+```
+
+**NOTE:** The name of your custom profile needs to match the aws credentials 
+in `.env.worker.dev`.
+
+#### c. RexRay s3fs Docker Volume plugin
 
 A s3fs compatible docker volume needs to be created.
 

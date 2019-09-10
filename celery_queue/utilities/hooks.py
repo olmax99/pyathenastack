@@ -1,23 +1,29 @@
 import io
 import logging
 import contextlib
+import os
 
+import boto3 as boto3
 import ijson
 import requests
 
 # from requests.auth import HTTPBasicAuth
 from itertools import chain, islice
 
+from botocore.exceptions import ClientError, ProfileNotFound
 
 logger = logging.getLogger()
 
 
 class BaseHook(object):
+    def __init__(self, chunk_size=None):
+        self._size = chunk_size
+
     def __repr__(self):
         return "BaseHook"
 
-    def __init__(self, chunk_size):
-        self._size = chunk_size
+    def create_conn(self):
+        pass
 
     @contextlib.contextmanager
     def loading_from(self, *args, **kwargs):
@@ -32,6 +38,9 @@ class BaseHook(object):
 # Currently not used, since http stream will save parquet file to folder,
 # which is mounted to an S3
 class LocalHook(BaseHook):
+    def __init__(self):
+        super(LocalHook, self).__init__(chunk_size=200)
+
     def __repr__(self):
         return f"LocalHook(chunk_size={self._size}"
 
@@ -47,6 +56,9 @@ class LocalHook(BaseHook):
 
 
 class HttpHook(BaseHook):
+    def __init__(self):
+        super(HttpHook, self).__init__(chunk_size=200)
+
     def __repr__(self):
         return f"HttpHook(chunk_size={self._size})"
 
@@ -73,3 +85,28 @@ class HttpHook(BaseHook):
             logger.log(logging.DEBUG, f"{e}")
         except requests.exceptions.RequestException as e:
             logger.log(logging.DEBUG, f"{e}")
+
+
+class S3Hook(BaseHook):
+    def __init__(self):
+        super(S3Hook, self).__init__()
+        self.aws_access_id = os.getenv('AWS_ACCESS_KEY_ID', None)
+        self.aws_secret_key = os.getenv('AWS_SECRET_ACCESS_KEY', None)
+        self._session = None
+        # self.custom_region = custom_region
+
+    def __repr__(self):
+        return f"S3Hook"
+
+    def create_client(self, custom_region=None):
+        try:
+            self._session = boto3.Session(aws_access_key_id=self.aws_access_id,
+                                          aws_secret_access_key=self.aws_secret_key)
+        except ClientError:
+            logger.log(logging.DEBUG, f"FATAL. Could not create s3 client session")
+        else:
+            if custom_region is not None:
+                s3_client = self._session.client('s3', region_name=f"{custom_region}")
+            else:
+                s3_client = self._session.client('s3')
+            return s3_client

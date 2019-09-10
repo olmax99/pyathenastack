@@ -1,5 +1,11 @@
 import os
+
 import pandas as pd
+
+from botocore.exceptions import ClientError
+from celery.utils.log import get_task_logger
+
+logger = get_task_logger(__name__)
 
 
 class Error(Exception):
@@ -26,17 +32,27 @@ class PermitsAthena(object):
     def __init__(self,
                  current_uuid=None,
                  partitiontime=None,
-                 base_data_dir='/queue/data/'):
+                 s3client=None,
+                 # -------------------------DEV ENVIRONMENT ---------------------------
+                 # TODO: Basebucket should be picked up from enviroment (e.g. dev)
+                 base_bucket='flaskapi-dev-rexray-data',
+                 base_data_dir='/queue/data/',
+                 base_data_store='flaskapi-dev-datastore-eu-central-1/permits/parquet'):
+
         self.job_uuid = current_uuid
         self._partitiontime = partitiontime
+        self.s3_client = s3client
+
+        self.base_bucket = base_bucket
         self.base_data_dir = base_data_dir
+        self.base_data_store = base_data_store
 
     def __repr__(self):
         # TODO: Add Athena credentials, i.e. service name, table id
         return f"aws.Athena.Client: " \
             f"'PermitsAthena.credentials'"
 
-    def permits_to_parquet(self, source_iterable, parquet_file, chunks=False, log=None):
+    def permits_to_parquet(self, source_iterable, parquet_file, chunks=False, log=False):
         """
         Saving the permits data locally (S3 mount) as parquet
         :param source_iterable: <generator object HttpHook>
@@ -68,7 +84,7 @@ class PermitsAthena(object):
             # ----------- 4. Save Parquet locally-----------------------------
             # TODO: Enable/test with compression snappy
             if log:
-                log.info(f"Writing DataFrame to {os.path.join(self.base_data_dir, f'{parquet_file}.parquet')}")
+                logger.info(f"Writing DataFrame to {os.path.join(self.base_data_dir, f'{parquet_file}.parquet')}")
             mapped_pandas_df.to_parquet(os.path.join(self.base_data_dir, f"{parquet_file}.parquet"), engine='pyarrow', compression=None)
 
         else:
@@ -117,3 +133,16 @@ class PermitsAthena(object):
                          'estate_proposed_use']]
 
         return df_map
+
+    def confirm_key_exist(self, log=False):
+        try:
+            object_summary = self.s3_client.head_object(Bucket=self.base_bucket,
+                                                        Key=f'data/{self.job_uuid}.parquet')
+            if log:
+                logger.info(f"PermitsObject: response {object_summary}")
+        except ClientError as e:
+            if e.response['Error']['Code'] == "404":
+                if log:
+                    logger.info("PermitsObject: Object not found.")
+        else:
+            return object_summary

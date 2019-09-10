@@ -1,5 +1,6 @@
 from utilities.hooks import LocalHook
 from utilities.hooks import HttpHook
+from utilities.hooks import S3Hook
 
 
 class Error(Exception):
@@ -26,11 +27,13 @@ class HookFactory(object):
         return "HookFactory"
 
     @staticmethod
-    def create(chunk_size=10, type_hook='local'):
+    def create(type_hook='local'):
         assert type_hook is not None and isinstance(type_hook, str)
         if type_hook == 'local':
-            return LocalHook(chunk_size)
+            return LocalHook()
         elif type_hook == 'http':
-            return HttpHook(chunk_size)
+            return HttpHook()
+        elif type_hook == 's3':
+            return S3Hook()
         else:
             raise HookTypeException(f"'{type_hook}' is not a valid source type.")
