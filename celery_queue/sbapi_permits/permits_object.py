@@ -97,9 +97,6 @@ class PermitsAthena(object):
                                'existing_use': 'estate_existing_use',
                                'status': 'application_status'},
                       inplace=True)
-        # Add custom TABLE PARTITION
-        # df_map['partitiontime'] = self._partitiontime
-        # df_map['partitiontime'] = pd.to_datetime(df_map['partitiontime'], errors='coerce').dt.date
         # Type mapping
         df_map['application_number'] = df_map['application_number'].astype('str', errors='ignore').replace('nan', pd.np.nan)
         df_map['permit_record_id'] = pd.to_numeric(df_map['permit_record_id'], downcast='integer', errors='coerce')
