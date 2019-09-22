@@ -203,6 +203,8 @@ $ docker logs -f dockerflaskapi_worker.flaskapi_1
 
 ```
 
+**NOTE:** Changes to the code base of the worker will always need complete restart.
+
 ---
 
 1. The Swagger Api documentation can be accessed in your browser at `localhost:80`.

@@ -56,8 +56,8 @@ class PermitsStateCheck(Resource):
         """
         with current_app.app_context():
             res = celery.AsyncResult(id=task_id)
-            result = res.get() if (res.state == 'SUCCESS') or \
-                                  (res.state == 'FAILURE') else None
+            result = res.get(timeout=2) if (res.state == 'SUCCESS') or \
+                                           (res.state == 'FAILURE') else None
 
             return {"state": f"{res.state}",
                     "result": f"{result}"
@@ -79,16 +79,16 @@ class PermitsDataStore(Resource):
             new_job_uuid = str(uuid.uuid1())
 
             current_app.logger.info(f'WebApi: create new job_id {new_job_uuid} for "Copy source file to Data Store".')
-            # Run background tasks
-            # 1. Create boto3 s3 conn <-- move boto3 conn to hooks
-            # 2. Check if file exists
-            # use result.wait() <-- needs to be included in request result
-            # (reason for background: simply boto3 part of hooks)
-            res = celery.send_task('tasks.verifysourcefileexists',
-                                   args=[job_id],
-                                   kwargs={})
+            # STEP 1: Verify that file exists in s3
+            task = celery.send_task('tasks.verifysourcefileexists',
+                                    args=[job_id],
+                                    kwargs={})
             # try:
-            res.wait(timeout=10)
+            current_app.logger.info(f"task_id: {task.id}")
+            res = celery.AsyncResult(id=task.id)
+            res.wait(4)
+            result = res.get(timeout=5) if (res.state == 'SUCCESS') or \
+                                           (res.state == 'FAILURE') else None
             # except celery.exceptions.TimeoutError as e:
             #     current_app.logger.info(f"WebApi: Could not get result in time.\n {e}.")
             # except BaseException as e:
@@ -104,6 +104,6 @@ class PermitsDataStore(Resource):
             return {'sync_runner_job_id': new_job_uuid,
                     'target_partition': f"/partitiontime='{target_partition}'",
                     'source_file_path': f'/{job_id}.parquet',
-                    'source_file_found': f'{not res.failed()}',
+                    'source_file_found': f'{result}',
                     'called_at': str(called_at),
                     }, 201, {'Content-Type': 'application/json'}
