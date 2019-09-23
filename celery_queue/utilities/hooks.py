@@ -93,7 +93,6 @@ class S3Hook(BaseHook):
         self.aws_access_id = os.getenv('AWS_ACCESS_KEY_ID', None)
         self.aws_secret_key = os.getenv('AWS_SECRET_ACCESS_KEY', None)
         self._session = None
-        # self.custom_region = custom_region
 
     def __repr__(self):
         return f"S3Hook"
@@ -110,3 +109,25 @@ class S3Hook(BaseHook):
             else:
                 s3_client = self._session.client('s3')
             return s3_client
+
+
+class CfnHook(BaseHook):
+    def __init__(self):
+        super(CfnHook, self).__init__()
+        self.aws_access_id = os.getenv('AWS_ACCESS_KEY_ID', None)
+        self.aws_secret_key = os.getenv('AWS_SECRET_ACCESS_KEY', None)
+        self._session = None
+
+    def create_client(self, custom_region=None):
+        try:
+            self._session = boto3.Session(aws_access_key_id=self.aws_access_id,
+                                          aws_secret_access_key=self.aws_secret_key)
+        except ClientError:
+            logger.log(logging.DEBUG, f"FATAL. Could not create cloudformation client session")
+        else:
+            if custom_region is not None:
+                cfn_client = self._session.client('cloudformation', region_name=f"{custom_region}")
+            else:
+                cfn_client = self._session.client('cloudformation')
+            return cfn_client
+

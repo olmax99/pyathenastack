@@ -1,12 +1,11 @@
 import os
-import time
-from datetime import datetime
-import logging
 
-# from redis import RedisError
+from typing import Optional
+
 from botocore.exceptions import ClientError, BotoCoreError
 from celery import Celery
 from celery.utils.log import get_task_logger
+from botocore.exceptions import ValidationError
 
 import utilities
 from sbapi_permits.permits_object import PermitsAthena
@@ -59,14 +58,17 @@ def get_sba_permits(job_id: str, long_job_id: str, dt_called):
 
 
 @celery.task(name='tasks.verifysourcefileexists')
-def verify_source_file_exists(job_id: str):
+def verify_source_file_exists(job_id: str) -> Optional[str]:
     fac = utilities.HookFactory()
     s3_hook = fac.create(type_hook='s3').create_client(custom_region='us-east-1')
     # logger.info(f"Task: s3 client: {s3_hook}")
 
+    sync_athena = PermitsAthena(current_uuid=job_id)
+
+    # TODO: Move to PermitsAthena class object
     object_summary = None
     try:
-        object_summary = s3_hook.head_object(Bucket='flaskapi-dev-rexray-data',
+        object_summary = s3_hook.head_object(Bucket=sync_athena.base_bucket,
                                              Key=f'data/{job_id}.parquet')
     except ClientError as e:
         if e.response['Error']['Code'] == '404' and 'HeadObject operation: Not Found' in str(e):
@@ -77,9 +79,42 @@ def verify_source_file_exists(job_id: str):
             object_summary = {'error': e, 'e.response': e.response['Error']}
     except BotoCoreError as e:
         logger.info(f"Unknown BotoCoreError: {e}")
-        object_summary = {'unknown_error': e}
+        object_summary = {'error': e}
     finally:
         if object_summary is not None:
             return f"{object_summary}"
         else:
-            return "Something went wrong."
+            return object_summary
+
+
+@celery.task(name='tasks.verifytargetstackexists')
+def verify_target_stack_exists(stack_name: str, partition: str) -> Optional[str]:
+    fac = utilities.HookFactory()
+    cfn_hook = fac.create(type_hook='cfn').create_client(custom_region='eu-central-1')
+
+    # TODO: Move to PermitsAthena class object
+    cfn_summary = None
+    try:
+        cfn_summary = cfn_hook.get_template_summary(StackName=stack_name)
+        logger.info(f'cfn_template_summary: {cfn_summary}')
+    except ClientError as e:
+        logger.info(f'error: {e}'
+                    f'error_response: {e.response}')
+        if e.response['Error']['Code'] == 'ValidationError' and 'does not exist' in e.response['Error']['Message']:
+            cfn_summary = {'error': e, 'e.response': e.response['Error']}
+        else:
+            logger.info(f"Unknown ClientError: {e, e.response['Error']}")
+            cfn_summary = {'error': e, 'e.response': e.response['Error']}
+    except BotoCoreError as e:
+        logger.info(f"Unknown BotoCoreError: {e}")
+        cfn_summary = {'error': e}
+    else:
+        req_resources = ['AWS::S3::Bucket', 'AWS::Glue::Database', 'AWS::Glue::Table', 'AWS::Glue::Partition']
+        if not all(item in req_resources for item in cfn_summary['ResourceTypes']):
+            cfn_summary = {'error': 'CustomValidationError',
+                           'e.response': 'Stack resources do not fulfill the requirements.'}
+    finally:
+        if cfn_summary is not None:
+            return f"{cfn_summary}"
+        else:
+            return cfn_summary

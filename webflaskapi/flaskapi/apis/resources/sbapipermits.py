@@ -8,6 +8,7 @@ from flask import current_app
 from flask_restplus import Namespace, Resource
 
 from flaskapi.core.worker import celery
+from celery.exceptions import TimeoutError, CeleryError
 # from flaskapi.api import redis_conn
 
 ns = Namespace('permits', description='A sample of SF housing permits')
@@ -64,14 +65,18 @@ class PermitsStateCheck(Resource):
                     }, 201, {'Content-Type': 'application/json'}
 
 
-@ns.route('/data_store/<job_id>')
-@ns.doc(params={'job_id': 'Unique uuid - file needs to exist.'})
-class PermitsDataStore(Resource):
-    def post(self, job_id):
+@ns.route('/to_data_store/<job_id>/<stack_name>')
+@ns.doc(params={'job_id': 'Unique job uuid - file needs to exist.',
+                'stack_name': 'Athena stack containing S3 data sore, Glue db, table, and partition'})
+class PermitsToDataStore(Resource):
+    def post(self, job_id, stack_name):
         """
         Copy source file from data lake to data store partition.
-        :param job_id:
-        :return:
+        :param job_id: Uuid of source file, which need to exist in data lake bucket.
+        :param stack_name: Name of the Athena target stack, which is required to contain the following resources:
+        'AWS::S3::Bucket', 'AWS::Glue::Database', 'AWS::Glue::Table', 'AWS::Glue::Partition'
+        :return: Verification of source and target. Copying of source file into target partition will take place if
+        both are successfully located. The Background task will not execute if either source or target has an error.
         """
         with current_app.app_context():
             called_at = datetime.utcnow()
@@ -79,31 +84,43 @@ class PermitsDataStore(Resource):
             new_job_uuid = str(uuid.uuid1())
 
             current_app.logger.info(f'WebApi: create new job_id {new_job_uuid} for "Copy source file to Data Store".')
-            # STEP 1: Verify that file exists in s3
-            task = celery.send_task('tasks.verifysourcefileexists',
-                                    args=[job_id],
-                                    kwargs={})
-            # try:
-            current_app.logger.info(f"task_id: {task.id}")
-            res = celery.AsyncResult(id=task.id)
-            res.wait(4)
-            result = res.get(timeout=5) if (res.state == 'SUCCESS') or \
-                                           (res.state == 'FAILURE') else None
-            # except celery.exceptions.TimeoutError as e:
-            #     current_app.logger.info(f"WebApi: Could not get result in time.\n {e}.")
-            # except BaseException as e:
-            #     current_app.logger.info(f"WebApi: Unexpected error.\n {e}.")
 
-            # Run background task
-            # Create boto3 glue conn
-            # 1. Verify that target partition exists
-            # 2. If not exist, create partition
-            # 3. Move file to partition
-            # Use chaining
+            # --------------------- STEP 1: Verify source file and target stack exist----------------
+
+            # 1. Verify that source file exists
+            task_src = celery.send_task('tasks.verifysourcefileexists', args=[job_id], kwargs={})
+            # 2. Verify that target stack/table/partition exists
+            task_stack = celery.send_task('tasks.verifytargetstackexists', args=[stack_name, target_partition],
+                                          kwargs={})
+            try:
+                # current_app.logger.info(f"task_id: {task.id}")
+                res_src = celery.AsyncResult(id=task_src.id)
+                res_src.wait(4)
+                res_stack = celery.AsyncResult(id=task_stack.id)
+                res_stack.wait(4)
+                result_src_f = res_src.get(timeout=5) if (res_src.state == 'SUCCESS') or \
+                                                         (res_src.state == 'FAILURE') else None
+                result_stack = res_stack.get(timeout=5) if (res_src.state == 'SUCCESS') or \
+                                                           (res_src.state == 'FAILURE') else None
+            except TimeoutError as e:
+                current_app.logger.info(f"WebApi: Could not get result in time. TimeoutError: {e}.")
+            except CeleryError as e:
+                current_app.logger.info(f"WebApi: Unexpected error.{e}.")
+
+            # --------------------- STEP 2: Update stack---------------------------------------------
+            #    Chain: Depends on task_src AND task_stack from STEP 1
+            #    Verify head_object and target stack resources are valid
+            # ---------------------------------------------------------------------------------------
+
+            # 2. If not exist, create new partition
+            # 3. Update stack
+
+            # CHAIN: DEPENDS ON STEP 2
+            # STEP 3: Copy source file to target partition
+            # 4. Move file to new or existing partition
 
             return {'sync_runner_job_id': new_job_uuid,
-                    'target_partition': f"/partitiontime='{target_partition}'",
-                    'source_file_path': f'/{job_id}.parquet',
-                    'source_file_found': f'{result}',
+                    'source_file': f'{result_src_f}',
+                    'data_store': f'{result_stack}',
                     'called_at': str(called_at),
                     }, 201, {'Content-Type': 'application/json'}

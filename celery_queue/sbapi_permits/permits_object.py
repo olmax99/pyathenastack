@@ -49,8 +49,7 @@ class PermitsAthena(object):
 
     def __repr__(self):
         # TODO: Add Athena credentials, i.e. service name, table id
-        return f"aws.Athena.Client: " \
-            f"'PermitsAthena.credentials'"
+        return f"aws.Athena.Client: 'PermitsAthena.credentials'"
 
     def permits_to_parquet(self, source_iterable, parquet_file, chunks=False, log=False):
         """
