@@ -6,9 +6,11 @@ from datetime import datetime
 
 from flask import current_app
 from flask_restplus import Namespace, Resource
+# from celery import group
 
 from flaskapi.core.worker import celery
 from celery.exceptions import TimeoutError, CeleryError
+from celery import group
 # from flaskapi.api import redis_conn
 
 ns = Namespace('permits', description='A sample of SF housing permits')
@@ -75,8 +77,7 @@ class PermitsToDataStore(Resource):
         :param job_id: Uuid of source file, which need to exist in data lake bucket.
         :param stack_name: Name of the Athena target stack, which is required to contain the following resources:
         'AWS::S3::Bucket', 'AWS::Glue::Database', 'AWS::Glue::Table', 'AWS::Glue::Partition'
-        :return: Verification of source and target. Copying of source file into target partition will take place if
-        both are successfully located. The Background task will not execute if either source or target has an error.
+        :return: Copying source file into partition will only take place if both are identified.
         """
         with current_app.app_context():
             called_at = datetime.utcnow()
@@ -86,22 +87,14 @@ class PermitsToDataStore(Resource):
             current_app.logger.info(f'WebApi: create new job_id {new_job_uuid} for "Copy source file to Data Store".')
 
             # --------------------- STEP 1: Verify source file and target stack exist----------------
-
-            # 1. Verify that source file exists
-            task_src = celery.send_task('tasks.verifysourcefileexists', args=[job_id], kwargs={})
-            # 2. Verify that target stack/table/partition exists
-            task_stack = celery.send_task('tasks.verifytargetstackexists', args=[stack_name, target_partition],
-                                          kwargs={})
+            verify_src_s = celery.signature('tasks.verifysourcefileexists', args=(job_id,), kwargs={}, options={})
+            verify_stack_s = celery.signature('tasks.verifytargetstackexists', args=(stack_name,),
+                                              kwargs={}, options={})
+            # Run in parallel
+            res_verify_grp = group(verify_src_s, verify_stack_s)()
             try:
-                # current_app.logger.info(f"task_id: {task.id}")
-                res_src = celery.AsyncResult(id=task_src.id)
-                res_src.wait(4)
-                res_stack = celery.AsyncResult(id=task_stack.id)
-                res_stack.wait(4)
-                result_src_f = res_src.get(timeout=5) if (res_src.state == 'SUCCESS') or \
-                                                         (res_src.state == 'FAILURE') else None
-                result_stack = res_stack.get(timeout=5) if (res_src.state == 'SUCCESS') or \
-                                                           (res_src.state == 'FAILURE') else None
+                # current_app.logger.info(f"GroupResult: {res_verify_grp.results}")
+                result_collect = [(i.id, i.get()) for i in res_verify_grp.results]
             except TimeoutError as e:
                 current_app.logger.info(f"WebApi: Could not get result in time. TimeoutError: {e}.")
             except CeleryError as e:
@@ -114,13 +107,15 @@ class PermitsToDataStore(Resource):
 
             # 2. If not exist, create new partition
             # 3. Update stack
+            # update_part_s = celery.signature('tasks.updatepartition', args=(target_partition,), kwargs={}, options={})
 
             # CHAIN: DEPENDS ON STEP 2
             # STEP 3: Copy source file to target partition
             # 4. Move file to new or existing partition
 
             return {'sync_runner_job_id': new_job_uuid,
-                    'source_file': f'{result_src_f}',
-                    'data_store': f'{result_stack}',
+                    'result_grp': f"{result_collect}",
+                    # 'source_file': f'{result_src_f}',
+                    # 'data_store': f'{result_stack}',
                     'called_at': str(called_at),
                     }, 201, {'Content-Type': 'application/json'}

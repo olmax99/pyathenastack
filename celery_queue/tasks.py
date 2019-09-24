@@ -3,7 +3,7 @@ import os
 from typing import Optional
 
 from botocore.exceptions import ClientError, BotoCoreError
-from celery import Celery
+from celery import Celery, group
 from celery.utils.log import get_task_logger
 from botocore.exceptions import ValidationError
 
@@ -88,7 +88,7 @@ def verify_source_file_exists(job_id: str) -> Optional[str]:
 
 
 @celery.task(name='tasks.verifytargetstackexists')
-def verify_target_stack_exists(stack_name: str, partition: str) -> Optional[str]:
+def verify_target_stack_exists(stack_name: str) -> Optional[str]:
     fac = utilities.HookFactory()
     cfn_hook = fac.create(type_hook='cfn').create_client(custom_region='eu-central-1')
 
@@ -118,3 +118,8 @@ def verify_target_stack_exists(stack_name: str, partition: str) -> Optional[str]
             return f"{cfn_summary}"
         else:
             return cfn_summary
+
+
+@celery.task(name='tasks.updatepartition')
+def update_partition():
+    pass
