@@ -121,5 +121,37 @@ def verify_target_stack_exists(stack_name: str) -> Optional[str]:
 
 
 @celery.task(name='tasks.updatepartition')
-def update_partition():
-    pass
+def update_partition(job_id: str, partition_name: str) -> Optional[str]:
+    fac = utilities.HookFactory()
+    glue_hook = fac.create(type_hook='glue').create_client(custom_region='eu-central-1')
+
+    sync_athena = PermitsAthena(current_uuid=job_id)
+    # STEP 1: Verify that partition does not exist
+    part_info = None
+    try:
+        glue_part_r = glue_hook.get_partition(DatabaseName=sync_athena.permits_database,
+                                              TableName=sync_athena.permits_table,
+                                              # PartitionValues=[f"{partition_name}"])
+                                              PartitionValues=['2019-09-06'])
+        part_info = glue_part_r
+        logger.info(f"partition_name: {partition_name}, glue_partition: {glue_part_r}")
+    except ClientError as e:
+        logger.info(f"message: {e}; Create new partition '{partition_name}'")
+        if 'GetPartition operation: Cannot find partition.' in str(e):
+            # STEP 2: Parsing table info required to create partitions from table
+            table_info = None
+            try:
+                glue_tbl_r = glue_hook.get_table(DatabaseName=sync_athena.permits_database,
+                                                 Name=sync_athena.permits_table)
+                logger.info(f"glue_table: {glue_tbl_r}")
+            except ClientError as e:
+                logger.info(f'error: {e}')
+            else:
+                input_format = glue_tbl_r['Table']['StorageDescriptor']['InputFormat']
+                output_format = glue_tbl_r['Table']['StorageDescriptor']['OutputFormat']
+                table_location = glue_tbl_r['Table']['StorageDescriptor']['Location']
+                serde_info = glue_tbl_r['Table']['StorageDescriptor']['SerdeInfo']
+                partition_keys = glue_tbl_r['Table']['PartitionKeys']
+            # STEP 3: Create new partition
+        else:
+            return part_info

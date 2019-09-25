@@ -119,8 +119,8 @@ Resources:
         StorageDescriptor:
           OutputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat
           Columns:
-          - Name: mon
-            Type: bigint
+          - Name: day
+            Type: string
           InputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat
           Location: s3://flaskapi-dev-datastore-eu-central-1/permits/parquet/partitiontime=2019-09-06/
           SerdeInfo:

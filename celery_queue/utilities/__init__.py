@@ -1,7 +1,4 @@
-from utilities.hooks import LocalHook
-from utilities.hooks import HttpHook
-from utilities.hooks import S3Hook
-from utilities.hooks import CfnHook
+from utilities.hooks import (LocalHook, HttpHook, S3Hook, CfnHook, GlueHook)
 
 
 class Error(Exception):
@@ -38,5 +35,7 @@ class HookFactory(object):
             return S3Hook()
         elif type_hook == 'cfn':
             return CfnHook()
+        elif type_hook == 'glue':
+            return GlueHook()
         else:
             raise HookTypeException(f"'{type_hook}' is not a valid source type.")

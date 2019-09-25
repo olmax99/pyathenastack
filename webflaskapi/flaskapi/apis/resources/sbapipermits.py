@@ -16,7 +16,7 @@ from celery import group
 ns = Namespace('permits', description='A sample of SF housing permits')
 
 
-# TODO: Schema and request status handling (including exceptions!!
+# TODO: Schema and request status handling (including exceptions!!)
 @ns.route('/report', endpoint='report')
 class PermitsReport(Resource):
     def get(self):
@@ -107,7 +107,14 @@ class PermitsToDataStore(Resource):
 
             # 2. If not exist, create new partition
             # 3. Update stack
-            # update_part_s = celery.signature('tasks.updatepartition', args=(target_partition,), kwargs={}, options={})
+            # update_part_s = celery.signature('tasks.updatepartition', args=(job_id, target_partition,), kwargs={}, options={})
+            res_update_part = celery.send_task('tasks.updatepartition', args=[job_id, target_partition],
+                                               kwargs={})
+            try:
+                res = celery.AsyncResult(id=res_update_part.id)
+                # res.wait(4)
+            except CeleryError as e:
+                current_app.logger.info(f"WebApi: Unexpected error.{e}.")
 
             # CHAIN: DEPENDS ON STEP 2
             # STEP 3: Copy source file to target partition

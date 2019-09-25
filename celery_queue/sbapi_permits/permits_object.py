@@ -30,14 +30,16 @@ class PermitsAthena(object):
 
     """
     def __init__(self,
-                 current_uuid=None,
+                 current_uuid,
                  partitiontime=None,
                  s3client=None,
                  # -------------------------DEV ENVIRONMENT ---------------------------
                  # TODO: Basebucket should be picked up from enviroment (e.g. dev)
                  base_bucket='flaskapi-dev-rexray-data',
                  base_data_dir='/queue/data/',
-                 base_data_store='flaskapi-dev-datastore-eu-central-1/permits/parquet'):
+                 base_data_store='flaskapi-dev-datastore-eu-central-1/permits/parquet',
+                 permits_database='dev_flaskapi_01',
+                 permits_table='dev_permits_01'):
 
         self.job_uuid = current_uuid
         self._partitiontime = partitiontime
@@ -47,9 +49,12 @@ class PermitsAthena(object):
         self.base_data_dir = base_data_dir
         self.base_data_store = base_data_store
 
+        self.permits_database = permits_database
+        self.permits_table = permits_table
+
     def __repr__(self):
         # TODO: Add Athena credentials, i.e. service name, table id
-        return f"aws.Athena.Client: 'PermitsAthena.credentials'"
+        return f"aws.Athena.Client: 'uuid.{self.job_uuid}'"
 
     def permits_to_parquet(self, source_iterable, parquet_file, chunks=False, log=False):
         """
