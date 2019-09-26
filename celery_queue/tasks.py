@@ -126,32 +126,66 @@ def update_partition(job_id: str, partition_name: str) -> Optional[str]:
     glue_hook = fac.create(type_hook='glue').create_client(custom_region='eu-central-1')
 
     sync_athena = PermitsAthena(current_uuid=job_id)
-    # STEP 1: Verify that partition does not exist
-    part_info = None
+    # -------------------- STEP 1: Verify that partition does not exist-----------------------------
+    get_part_info = None
     try:
-        glue_part_r = glue_hook.get_partition(DatabaseName=sync_athena.permits_database,
-                                              TableName=sync_athena.permits_table,
-                                              # PartitionValues=[f"{partition_name}"])
-                                              PartitionValues=['2019-09-06'])
-        part_info = glue_part_r
-        logger.info(f"partition_name: {partition_name}, glue_partition: {glue_part_r}")
+        get_glue_part_r = glue_hook.get_partition(DatabaseName=sync_athena.permits_database,
+                                                  TableName=sync_athena.permits_table,
+                                                  # PartitionValues=['2019-09-07'])
+                                                  PartitionValues=[f"{partition_name}"])
+        get_part_info = get_glue_part_r
+        # logger.info(f"partition_name: {partition_name}, glue_partition: {get_glue_part_r}")
     except ClientError as e:
-        logger.info(f"message: {e}; Create new partition '{partition_name}'")
+        logger.info(f"message: partitiontime='{partition_name}' not found. Create new partition '{partition_name}'")
         if 'GetPartition operation: Cannot find partition.' in str(e):
-            # STEP 2: Parsing table info required to create partitions from table
+            # ------------- STEP 2: Parsing table info required to create partitions from table----
             table_info = None
             try:
                 glue_tbl_r = glue_hook.get_table(DatabaseName=sync_athena.permits_database,
                                                  Name=sync_athena.permits_table)
-                logger.info(f"glue_table: {glue_tbl_r}")
+                # logger.info(f"glue_table: {glue_tbl_r}")
             except ClientError as e:
-                logger.info(f'error: {e}')
+                table_info = {'error': e}
+                return f"{table_info}"
             else:
-                input_format = glue_tbl_r['Table']['StorageDescriptor']['InputFormat']
-                output_format = glue_tbl_r['Table']['StorageDescriptor']['OutputFormat']
-                table_location = glue_tbl_r['Table']['StorageDescriptor']['Location']
-                serde_info = glue_tbl_r['Table']['StorageDescriptor']['SerdeInfo']
-                partition_keys = glue_tbl_r['Table']['PartitionKeys']
-            # STEP 3: Create new partition
-        else:
-            return part_info
+                try:
+                    part_input_dict = {'Values': [f'{partition_name}'],
+                                       'StorageDescriptor': {
+                                           'Location': f"{glue_tbl_r['Table']['StorageDescriptor']['Location']}/partitiontime={partition_name}/",
+                                           'InputFormat': glue_tbl_r['Table']['StorageDescriptor']['InputFormat'],
+                                           'OutputFormat': glue_tbl_r['Table']['StorageDescriptor']['OutputFormat'],
+                                           'SerdeInfo': glue_tbl_r['Table']['StorageDescriptor']['SerdeInfo']
+                                       }}
+                    # partition_keys = glue_tbl_r['Table']['PartitionKeys']
+                except KeyError as e:
+                    table_info = {'error': e, 'message': 'Could not retrieve Keys from Glue::Table.'}
+                except BaseException as e:
+                    table_info = {'error': 'Unexpected error', 'message': e}
+                else:
+                    # ------- STEP 3: Create new partition----------------------------------------
+                    try:
+                        create_glue_part_r = glue_hook.create_partition(DatabaseName=sync_athena.permits_database,
+                                                                        TableName=sync_athena.permits_table,
+                                                                        PartitionInput=part_input_dict)
+                    except ClientError as e:
+                        table_info = {'error': 'Unexpected error when creating partition', 'message': e}
+                    except BotoCoreError as e:
+                        logger.info(f"Unknown BotoCoreError: {e}")
+                        table_info = {'error': e}
+                    else:
+                        # logger.info(f'message: {create_glue_part_r}')
+                        get_part_info = create_glue_part_r
+                finally:
+                    if table_info is not None:
+                        return f"{table_info}"
+    except BotoCoreError as e:
+        logger.info(f"Unknown BotoCoreError: {e}")
+        get_part_info = {'error': e}
+    finally:
+        return f"{get_part_info}"
+
+
+# def copy_src_f_to_partition():
+    # f"Copy 's3://{sync_athena.base_data_store}{job_id}.parquet' to" \
+    # f"s3://{sync_athena.base_data_store} with " \
+    # f"Glue::{sync_athena.permits_database}.{sync_athena.permits_table}.partitiontime='{partition_name}'."
