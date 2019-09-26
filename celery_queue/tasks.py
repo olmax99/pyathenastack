@@ -1,12 +1,10 @@
-import json
 import os
 
 from typing import Optional
 
 from botocore.exceptions import ClientError, BotoCoreError
-from celery import Celery, group
+from celery import Celery
 from celery.utils.log import get_task_logger
-from botocore.exceptions import ValidationError
 
 import utilities
 from sbapi_permits.permits_object import PermitsAthena
@@ -20,10 +18,6 @@ CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'redis://:test45
 celery = Celery('tasks', broker=CELERY_BROKER_URL, backend=CELERY_RESULT_BACKEND)
 
 logger = get_task_logger(__name__)
-
-
-class TaskFailure(Exception):
-    pass
 
 
 # TODO: Add schema verification for input variables
@@ -121,24 +115,27 @@ def verify_target_stack_exists(stack_name: str) -> Optional[dict]:
 
 
 @celery.task(name='tasks.updatepartition')
-def update_partition(chain_parent_in: dict, job_id: str, partition_name: str) -> Optional[dict]:
+def update_partition(chain_parent_in: list, job_id: str, partition_name: str) -> Optional[dict]:
     """
-    NOTE: This task is part of a chain(). It takes as first argument the output of its parent task.
-    It also evaluates if the previous tasks contain any errors.
-    :param chain_parent_in:
+    NOTE: This task is part of a chain(). At very first, it is evaluated if the previous tasks contain any errors.
+    :param chain_parent_in: Output of parent task.
     :param job_id:
     :param partition_name:
     :return:
     """
     fac = utilities.HookFactory()
     glue_hook = fac.create(type_hook='glue').create_client(custom_region='eu-central-1')
-
     sync_athena = PermitsAthena(current_uuid=job_id)
 
-    logger.info(f"chain_parent_in: {type(chain_parent_in), chain_parent_in}")
+    # -------------------- STEP 1: Verify head_object and target stack resources are valid----------
+    for response in chain_parent_in:
+        if 'error' in response.keys():
+            return {'error': 'CustomTaskException',
+                    'message': 'Source file or target not valid. Update partition failed.'}
 
     # -------------------- STEP 2: Verify that partition does not exist-----------------------------
     get_part_info = None
+
     try:
         get_glue_part_r = glue_hook.get_partition(DatabaseName=sync_athena.permits_database,
                                                   TableName=sync_athena.permits_table,
@@ -149,6 +146,7 @@ def update_partition(chain_parent_in: dict, job_id: str, partition_name: str) ->
     except ClientError as e:
         logger.info(f"message: partitiontime='{partition_name}' not found. Create new partition '{partition_name}'")
         if 'GetPartition operation: Cannot find partition.' in str(e):
+
             # ------------- STEP 3: Parsing table info required to create partitions from table----
             table_info = None
             try:
@@ -173,6 +171,7 @@ def update_partition(chain_parent_in: dict, job_id: str, partition_name: str) ->
                 except BaseException as e:
                     table_info = {'error': 'Unexpected error', 'message': str(e)}
                 else:
+
                     # ------- STEP 4: Create new partition----------------------------------------
                     try:
                         create_glue_part_r = glue_hook.create_partition(DatabaseName=sync_athena.permits_database,
@@ -184,7 +183,6 @@ def update_partition(chain_parent_in: dict, job_id: str, partition_name: str) ->
                         logger.info(f"Unknown BotoCoreError: {e}")
                         table_info = {'error': str(e)}
                     else:
-                        # logger.info(f'message: {create_glue_part_r}')
                         get_part_info = create_glue_part_r
                 finally:
                     if table_info is not None:

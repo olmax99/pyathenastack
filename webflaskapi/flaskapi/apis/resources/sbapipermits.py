@@ -86,12 +86,12 @@ class PermitsToDataStore(Resource):
 
             current_app.logger.info(f'WebApi: create new job_id {new_job_uuid} for "Copy source file to Data Store".')
 
-            # --------------------- STEP 1: Verify source file and target stack exist----------------
+            # --------------------- STEP 1: Verify source file and target table exist----------------
             verify_src_s = celery.signature('tasks.verifysourcefileexists', args=(job_id,),
                                             kwargs={}, options={})
             verify_stack_s = celery.signature('tasks.verifytargetstackexists', args=(stack_name,),
                                               kwargs={}, options={})
-            # --------------------- STEP 2: Update stack with new partition if needed----------------
+            # --------------------- STEP 2: Update aws::Glue with new partition if needed------------
             update_part_s = celery.signature('tasks.updatepartition', args=(job_id, target_partition),
                                              kwargs={}, options={})
             # Run in parallel: verify_src_s, verify_stack_s
@@ -106,29 +106,10 @@ class PermitsToDataStore(Resource):
             except CeleryError as e:
                 current_app.logger.info(f"WebApi: Unexpected error.{e}.")
 
-
-            #    Chain: Depends on task_src AND task_stack from STEP 1
-            #    Verify head_object and target stack resources are valid
-            # ---------------------------------------------------------------------------------------
-
-            # 2. If not exist, create new partition
-            # 3. Update stack
-            # update_part_s = celery.signature('tasks.updatepartition', args=(job_id, target_partition,), kwargs={}, options={})
-            # res_update_part = celery.send_task('tasks.updatepartition', args=[job_id, target_partition],
-            #                                    kwargs={})
-            # try:
-            #     res = celery.AsyncResult(id=res_update_part.id)
-            #     # res.wait(4)
-            # except CeleryError as e:
-            #     current_app.logger.info(f"WebApi: Unexpected error.{e}.")
-
             # CHAIN: DEPENDS ON STEP 2
             # STEP 3: Copy source file to target partition
-            # 4. Move file to new or existing partition
 
             return {'sync_runner_job_id': new_job_uuid,
-                    'result_grp': f"{result_collect}",
-                    # 'source_file': f'{result_src_f}',
-                    # 'data_store': f'{result_stack}',
+                    'source_file_target_stack_check': f"{result_collect}",
                     'called_at': str(called_at),
                     }, 201, {'Content-Type': 'application/json'}
