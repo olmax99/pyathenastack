@@ -1,3 +1,4 @@
+import json
 import os
 
 from typing import Optional
@@ -58,7 +59,7 @@ def get_sba_permits(job_id: str, long_job_id: str, dt_called):
 
 
 @celery.task(name='tasks.verifysourcefileexists')
-def verify_source_file_exists(job_id: str) -> Optional[str]:
+def verify_source_file_exists(job_id: str) -> Optional[dict]:
     fac = utilities.HookFactory()
     s3_hook = fac.create(type_hook='s3').create_client(custom_region='us-east-1')
     # logger.info(f"Task: s3 client: {s3_hook}")
@@ -73,22 +74,22 @@ def verify_source_file_exists(job_id: str) -> Optional[str]:
     except ClientError as e:
         if e.response['Error']['Code'] == '404' and 'HeadObject operation: Not Found' in str(e):
             # logger.info("HEAD object not found.")
-            object_summary = {'error': e, 'e.response': e.response['Error']}
+            object_summary = {'error': str(e), 'e.response': e.response['Error']}
         else:
             logger.info(f"Unknown ClientError: {e, e.response['Error']}")
-            object_summary = {'error': e, 'e.response': e.response['Error']}
+            object_summary = {'error': str(e), 'e.response': e.response['Error']}
     except BotoCoreError as e:
         logger.info(f"Unknown BotoCoreError: {e}")
-        object_summary = {'error': e}
+        object_summary = {'error': str(e)}
     finally:
         if object_summary is not None:
-            return f"{object_summary}"
+            return object_summary
         else:
             return object_summary
 
 
 @celery.task(name='tasks.verifytargetstackexists')
-def verify_target_stack_exists(stack_name: str) -> Optional[str]:
+def verify_target_stack_exists(stack_name: str) -> Optional[dict]:
     fac = utilities.HookFactory()
     cfn_hook = fac.create(type_hook='cfn').create_client(custom_region='eu-central-1')
 
@@ -96,18 +97,17 @@ def verify_target_stack_exists(stack_name: str) -> Optional[str]:
     cfn_summary = None
     try:
         cfn_summary = cfn_hook.get_template_summary(StackName=stack_name)
-        logger.info(f'cfn_template_summary: {cfn_summary}')
+        # logger.info(f'cfn_template_summary: {cfn_summary}')
     except ClientError as e:
-        logger.info(f'error: {e}'
-                    f'error_response: {e.response}')
+        # logger.info(f"error: {e}', 'error_response': {e.response}")
         if e.response['Error']['Code'] == 'ValidationError' and 'does not exist' in e.response['Error']['Message']:
-            cfn_summary = {'error': e, 'e.response': e.response['Error']}
+            cfn_summary = {'error': str(e), 'e.response': str(e.response['Error'])}
         else:
             logger.info(f"Unknown ClientError: {e, e.response['Error']}")
-            cfn_summary = {'error': e, 'e.response': e.response['Error']}
+            cfn_summary = {'error': str(e), 'e.response': str(e.response['Error'])}
     except BotoCoreError as e:
         logger.info(f"Unknown BotoCoreError: {e}")
-        cfn_summary = {'error': e}
+        cfn_summary = {'error': str(e)}
     else:
         req_resources = ['AWS::S3::Bucket', 'AWS::Glue::Database', 'AWS::Glue::Table', 'AWS::Glue::Partition']
         if not all(item in req_resources for item in cfn_summary['ResourceTypes']):
@@ -115,18 +115,29 @@ def verify_target_stack_exists(stack_name: str) -> Optional[str]:
                            'e.response': 'Stack resources do not fulfill the requirements.'}
     finally:
         if cfn_summary is not None:
-            return f"{cfn_summary}"
+            return cfn_summary
         else:
             return cfn_summary
 
 
 @celery.task(name='tasks.updatepartition')
-def update_partition(job_id: str, partition_name: str) -> Optional[str]:
+def update_partition(chain_parent_in: dict, job_id: str, partition_name: str) -> Optional[dict]:
+    """
+    NOTE: This task is part of a chain(). It takes as first argument the output of its parent task.
+    It also evaluates if the previous tasks contain any errors.
+    :param chain_parent_in:
+    :param job_id:
+    :param partition_name:
+    :return:
+    """
     fac = utilities.HookFactory()
     glue_hook = fac.create(type_hook='glue').create_client(custom_region='eu-central-1')
 
     sync_athena = PermitsAthena(current_uuid=job_id)
-    # -------------------- STEP 1: Verify that partition does not exist-----------------------------
+
+    logger.info(f"chain_parent_in: {type(chain_parent_in), chain_parent_in}")
+
+    # -------------------- STEP 2: Verify that partition does not exist-----------------------------
     get_part_info = None
     try:
         get_glue_part_r = glue_hook.get_partition(DatabaseName=sync_athena.permits_database,
@@ -138,15 +149,15 @@ def update_partition(job_id: str, partition_name: str) -> Optional[str]:
     except ClientError as e:
         logger.info(f"message: partitiontime='{partition_name}' not found. Create new partition '{partition_name}'")
         if 'GetPartition operation: Cannot find partition.' in str(e):
-            # ------------- STEP 2: Parsing table info required to create partitions from table----
+            # ------------- STEP 3: Parsing table info required to create partitions from table----
             table_info = None
             try:
                 glue_tbl_r = glue_hook.get_table(DatabaseName=sync_athena.permits_database,
                                                  Name=sync_athena.permits_table)
                 # logger.info(f"glue_table: {glue_tbl_r}")
             except ClientError as e:
-                table_info = {'error': e}
-                return f"{table_info}"
+                table_info = {'error': str(e)}
+                return table_info
             else:
                 try:
                     part_input_dict = {'Values': [f'{partition_name}'],
@@ -158,31 +169,31 @@ def update_partition(job_id: str, partition_name: str) -> Optional[str]:
                                        }}
                     # partition_keys = glue_tbl_r['Table']['PartitionKeys']
                 except KeyError as e:
-                    table_info = {'error': e, 'message': 'Could not retrieve Keys from Glue::Table.'}
+                    table_info = {'error': str(e), 'message': 'Could not retrieve Keys from Glue::Table.'}
                 except BaseException as e:
-                    table_info = {'error': 'Unexpected error', 'message': e}
+                    table_info = {'error': 'Unexpected error', 'message': str(e)}
                 else:
-                    # ------- STEP 3: Create new partition----------------------------------------
+                    # ------- STEP 4: Create new partition----------------------------------------
                     try:
                         create_glue_part_r = glue_hook.create_partition(DatabaseName=sync_athena.permits_database,
                                                                         TableName=sync_athena.permits_table,
                                                                         PartitionInput=part_input_dict)
                     except ClientError as e:
-                        table_info = {'error': 'Unexpected error when creating partition', 'message': e}
+                        table_info = {'error': 'Unexpected error when creating partition', 'message': str(e)}
                     except BotoCoreError as e:
                         logger.info(f"Unknown BotoCoreError: {e}")
-                        table_info = {'error': e}
+                        table_info = {'error': str(e)}
                     else:
                         # logger.info(f'message: {create_glue_part_r}')
                         get_part_info = create_glue_part_r
                 finally:
                     if table_info is not None:
-                        return f"{table_info}"
+                        return table_info
     except BotoCoreError as e:
         logger.info(f"Unknown BotoCoreError: {e}")
-        get_part_info = {'error': e}
+        get_part_info = {'error': str(e)}
     finally:
-        return f"{get_part_info}"
+        return get_part_info
 
 
 # def copy_src_f_to_partition():

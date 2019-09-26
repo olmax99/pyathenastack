@@ -10,7 +10,7 @@ from flask_restplus import Namespace, Resource
 
 from flaskapi.core.worker import celery
 from celery.exceptions import TimeoutError, CeleryError
-from celery import group
+from celery import group, chain
 # from flaskapi.api import redis_conn
 
 ns = Namespace('permits', description='A sample of SF housing permits')
@@ -87,20 +87,26 @@ class PermitsToDataStore(Resource):
             current_app.logger.info(f'WebApi: create new job_id {new_job_uuid} for "Copy source file to Data Store".')
 
             # --------------------- STEP 1: Verify source file and target stack exist----------------
-            verify_src_s = celery.signature('tasks.verifysourcefileexists', args=(job_id,), kwargs={}, options={})
+            verify_src_s = celery.signature('tasks.verifysourcefileexists', args=(job_id,),
+                                            kwargs={}, options={})
             verify_stack_s = celery.signature('tasks.verifytargetstackexists', args=(stack_name,),
                                               kwargs={}, options={})
-            # Run in parallel
-            res_verify_grp = group(verify_src_s, verify_stack_s)()
+            # --------------------- STEP 2: Update stack with new partition if needed----------------
+            update_part_s = celery.signature('tasks.updatepartition', args=(job_id, target_partition),
+                                             kwargs={}, options={})
+            # Run in parallel: verify_src_s, verify_stack_s
+            verify_grp = group(verify_src_s, verify_stack_s)
+            # Chain with: update_part_s
+            grp_update_chain_res = chain(verify_grp, update_part_s)()
             try:
                 # current_app.logger.info(f"GroupResult: {res_verify_grp.results}")
-                result_collect = [(i.id, i.get()) for i in res_verify_grp.results]
+                result_collect = [(i.id, i.get()) for i in grp_update_chain_res.parent]
             except TimeoutError as e:
                 current_app.logger.info(f"WebApi: Could not get result in time. TimeoutError: {e}.")
             except CeleryError as e:
                 current_app.logger.info(f"WebApi: Unexpected error.{e}.")
 
-            # --------------------- STEP 2: Update stack---------------------------------------------
+
             #    Chain: Depends on task_src AND task_stack from STEP 1
             #    Verify head_object and target stack resources are valid
             # ---------------------------------------------------------------------------------------
@@ -108,13 +114,13 @@ class PermitsToDataStore(Resource):
             # 2. If not exist, create new partition
             # 3. Update stack
             # update_part_s = celery.signature('tasks.updatepartition', args=(job_id, target_partition,), kwargs={}, options={})
-            res_update_part = celery.send_task('tasks.updatepartition', args=[job_id, target_partition],
-                                               kwargs={})
-            try:
-                res = celery.AsyncResult(id=res_update_part.id)
-                # res.wait(4)
-            except CeleryError as e:
-                current_app.logger.info(f"WebApi: Unexpected error.{e}.")
+            # res_update_part = celery.send_task('tasks.updatepartition', args=[job_id, target_partition],
+            #                                    kwargs={})
+            # try:
+            #     res = celery.AsyncResult(id=res_update_part.id)
+            #     # res.wait(4)
+            # except CeleryError as e:
+            #     current_app.logger.info(f"WebApi: Unexpected error.{e}.")
 
             # CHAIN: DEPENDS ON STEP 2
             # STEP 3: Copy source file to target partition
