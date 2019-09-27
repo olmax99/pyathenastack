@@ -77,7 +77,8 @@ class PermitsToDataStore(Resource):
         :param job_id: Uuid of source file, which need to exist in data lake bucket.
         :param stack_name: Name of the Athena target stack, which is required to contain the following resources:
         'AWS::S3::Bucket', 'AWS::Glue::Database', 'AWS::Glue::Table', 'AWS::Glue::Partition'
-        :return: Copying source file into partition will only take place if both are identified.
+        :return: Copying source file into partition will only take place if 
+        response_body['source_file_target_stack_check'] does NOT contain any error message.
         """
         with current_app.app_context():
             called_at = datetime.utcnow()
@@ -94,20 +95,20 @@ class PermitsToDataStore(Resource):
             # --------------------- STEP 2: Update aws::Glue with new partition if needed------------
             update_part_s = celery.signature('tasks.updatepartition', args=(job_id, target_partition),
                                              kwargs={}, options={})
+            # --------------------- STEP 3: Copy source file to target partition---------------------
+            copy_file_s = celery.signature('tasks.copysrcfiletotarget', args=(job_id, target_partition),
+                                           kwargs={}, options={})
             # Run in parallel: verify_src_s, verify_stack_s
             verify_grp = group(verify_src_s, verify_stack_s)
             # Chain with: update_part_s
-            grp_update_chain_res = chain(verify_grp, update_part_s)()
+            cel_chain_res = chain(verify_grp, update_part_s, copy_file_s)()
             try:
                 # current_app.logger.info(f"GroupResult: {res_verify_grp.results}")
-                result_collect = [(i.id, i.get()) for i in grp_update_chain_res.parent]
+                result_collect = [(i.id, i.get()) for i in cel_chain_res.parent]
             except TimeoutError as e:
                 current_app.logger.info(f"WebApi: Could not get result in time. TimeoutError: {e}.")
             except CeleryError as e:
                 current_app.logger.info(f"WebApi: Unexpected error.{e}.")
-
-            # CHAIN: DEPENDS ON STEP 2
-            # STEP 3: Copy source file to target partition
 
             return {'sync_runner_job_id': new_job_uuid,
                     'source_file_target_stack_check': f"{result_collect}",

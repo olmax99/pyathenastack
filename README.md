@@ -220,6 +220,14 @@ $ aws cloudformation create-stack --stack-name flaskapi-dev-athena-01 \
 
 ```
 
+Verify that partition can be located:
+```
+SELECT application_number, permit_record_id
+FROM dev_flaskapi_01.dev_permits_01
+WHERE partitiontime='2019-09-27';
+
+
+```
 
 **Delete resources:**
 

@@ -127,56 +127,56 @@ def update_partition(chain_parent_in: list, job_id: str, partition_name: str) ->
     glue_hook = fac.create(type_hook='glue').create_client(custom_region='eu-central-1')
     sync_athena = PermitsAthena(current_uuid=job_id)
 
+    table_info = None
     # -------------------- STEP 1: Verify head_object and target stack resources are valid----------
     for response in chain_parent_in:
         if 'error' in response.keys():
-            return {'error': 'CustomTaskException',
-                    'message': 'Source file or target not valid. Update partition failed.'}
+            table_info = {'error': 'CustomTaskException',
+                          'message': 'Source file or target not valid. Update partition failed.'}
+            return table_info
+    try:
+        glue_tbl_r = glue_hook.get_table(DatabaseName=sync_athena.permits_database,
+                                         Name=sync_athena.permits_table)
+        # logger.info(f"glue_table: {glue_tbl_r}")
+    except ClientError as e:
+        table_info = {'error': str(e)}
+        return table_info
+    else:
+        table_info = glue_tbl_r
 
     # -------------------- STEP 2: Verify that partition does not exist-----------------------------
-    get_part_info = None
+        try:
+            get_glue_part_r = glue_hook.get_partition(DatabaseName=sync_athena.permits_database,
+                                                      TableName=sync_athena.permits_table,
+                                                      # PartitionValues=['2019-09-07'])
+                                                      PartitionValues=[f"{partition_name}"])
+            logger.info(f"table_info: {table_info}, \t partition_name: {partition_name}, \t glue_partition: {get_glue_part_r}")
+        except ClientError as e:
+            logger.info(f"message: partitiontime='{partition_name}' not found. Create new partition '{partition_name}'")
+            if 'GetPartition operation: Cannot find partition.' in str(e):
 
-    try:
-        get_glue_part_r = glue_hook.get_partition(DatabaseName=sync_athena.permits_database,
-                                                  TableName=sync_athena.permits_table,
-                                                  # PartitionValues=['2019-09-07'])
-                                                  PartitionValues=[f"{partition_name}"])
-        get_part_info = get_glue_part_r
-        # logger.info(f"partition_name: {partition_name}, glue_partition: {get_glue_part_r}")
-    except ClientError as e:
-        logger.info(f"message: partitiontime='{partition_name}' not found. Create new partition '{partition_name}'")
-        if 'GetPartition operation: Cannot find partition.' in str(e):
-
-            # ------------- STEP 3: Parsing table info required to create partitions from table----
-            table_info = None
-            try:
-                glue_tbl_r = glue_hook.get_table(DatabaseName=sync_athena.permits_database,
-                                                 Name=sync_athena.permits_table)
-                # logger.info(f"glue_table: {glue_tbl_r}")
-            except ClientError as e:
-                table_info = {'error': str(e)}
-                return table_info
-            else:
+                # ------------- STEP 3: Parsing table info required to create partitions from table----
                 try:
                     part_input_dict = {'Values': [f'{partition_name}'],
                                        'StorageDescriptor': {
-                                           'Location': f"{glue_tbl_r['Table']['StorageDescriptor']['Location']}/partitiontime={partition_name}/",
-                                           'InputFormat': glue_tbl_r['Table']['StorageDescriptor']['InputFormat'],
-                                           'OutputFormat': glue_tbl_r['Table']['StorageDescriptor']['OutputFormat'],
-                                           'SerdeInfo': glue_tbl_r['Table']['StorageDescriptor']['SerdeInfo']
+                                           'Location': f"{table_info['Table']['StorageDescriptor']['Location']}/partitiontime={partition_name}/",
+                                           'InputFormat': table_info['Table']['StorageDescriptor']['InputFormat'],
+                                           'OutputFormat': table_info['Table']['StorageDescriptor']['OutputFormat'],
+                                           'SerdeInfo': table_info['Table']['StorageDescriptor']['SerdeInfo']
                                        }}
-                    # partition_keys = glue_tbl_r['Table']['PartitionKeys']
+                    # partition_keys = table_info['Table']['PartitionKeys']
                 except KeyError as e:
                     table_info = {'error': str(e), 'message': 'Could not retrieve Keys from Glue::Table.'}
                 except BaseException as e:
                     table_info = {'error': 'Unexpected error', 'message': str(e)}
                 else:
-
                     # ------- STEP 4: Create new partition----------------------------------------
+
                     try:
                         create_glue_part_r = glue_hook.create_partition(DatabaseName=sync_athena.permits_database,
                                                                         TableName=sync_athena.permits_table,
                                                                         PartitionInput=part_input_dict)
+
                     except ClientError as e:
                         table_info = {'error': 'Unexpected error when creating partition', 'message': str(e)}
                     except BotoCoreError as e:
@@ -184,17 +184,42 @@ def update_partition(chain_parent_in: list, job_id: str, partition_name: str) ->
                         table_info = {'error': str(e)}
                     else:
                         get_part_info = create_glue_part_r
+                        logger.info(f"Create new partition: {get_part_info}")
                 finally:
                     if table_info is not None:
                         return table_info
+                    else:
+                        return {'error': 'UnknownError.', 'message': 'Unable to retrieve table information.'}
+        except BotoCoreError as e:
+            logger.info(f"Unknown BotoCoreError: {e}")
+            return {'error': str(e)}
+        else:
+            return table_info
+
+
+@celery.task(name='tasks.copysrcfiletotarget')
+def copy_src_file_to_target(chain_parent_in: dict, job_id: str, partition_name: str) -> Optional[dict]:
+    fac = utilities.HookFactory()
+    s3_hook = fac.create(type_hook='s3').create_client(custom_region='us-east-1')
+
+    sync_athena = PermitsAthena(current_uuid=job_id)
+
+    # logger.info(f'chain_parent_in: {chain_parent_in}')
+    if chain_parent_in is None or 'error' in chain_parent_in.keys():
+        return {'error': 'CustomException', 'message': 'Could not resolve target table information.'}
+
+    target_location = f"{chain_parent_in['Table']['StorageDescriptor']['Location'][5:]}partitiontime={partition_name}"
+    target_bucket = target_location.split('/')[0]
+    target_key = target_location.split('/', maxsplit=1)[1:][0]
+    source_object = {"Bucket": sync_athena.base_bucket,
+                     "Key": f"data/{job_id}.parquet"}
+    logger.info(f"Copy 's3://{source_object['Bucket']}/{source_object['Key']}' to"
+                f" s3://{target_bucket}/{target_key}/{job_id}.parquet.")
+    try:
+        s3_hook.copy(source_object, Bucket=target_bucket, Key=f"{target_key}/{job_id}.parquet")
+    except ClientError as e:
+        return {'error': str(e)}
     except BotoCoreError as e:
-        logger.info(f"Unknown BotoCoreError: {e}")
-        get_part_info = {'error': str(e)}
-    finally:
-        return get_part_info
-
-
-# def copy_src_f_to_partition():
-    # f"Copy 's3://{sync_athena.base_data_store}{job_id}.parquet' to" \
-    # f"s3://{sync_athena.base_data_store} with " \
-    # f"Glue::{sync_athena.permits_database}.{sync_athena.permits_table}.partitiontime='{partition_name}'."
+        return {'error': str(e)}
+    else:
+        return {'result': 'SUCCESS.'}
