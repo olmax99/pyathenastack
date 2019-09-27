@@ -25,12 +25,12 @@ class HookFactory(object):
         return "HookFactory"
 
     @staticmethod
-    def create(type_hook='local'):
+    def create(type_hook='local', chunk_size=200):
         assert type_hook is not None and isinstance(type_hook, str)
         if type_hook == 'local':
-            return LocalHook()
+            return LocalHook(chunk_size=chunk_size)
         elif type_hook == 'http':
-            return HttpHook()
+            return HttpHook(chunk_size=chunk_size)
         elif type_hook == 's3':
             return S3Hook()
         elif type_hook == 'cfn':

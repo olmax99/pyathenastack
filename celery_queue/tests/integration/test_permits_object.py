@@ -45,7 +45,7 @@ def test_permits_to_parquet_no_chunks(caplog,
             df_generated = pd.DataFrame(http_stream[0]).reset_index().drop(columns=['index'])
             # logger.debug(f"df_generated: \n {df_generated}")
 
-            permits_object = PermitsAthena()
+            permits_object = PermitsAthena(current_uuid='a00bcde0-test-00f0-g000-0000hi000001')
             permits_object.permits_to_parquet(source_iterable=http_stream,
                                               parquet_file=tmp_file,
                                               chunks=False)
@@ -89,7 +89,7 @@ for _c in test_case:
                 # logger.debug(f"df_generated: \n {df_generated}")
 
                 # -------------------Run target function ------------------------------
-                permits_object = PermitsAthena()
+                permits_object = PermitsAthena(current_uuid='a00bcde0-test-00f0-g000-0000hi000001')
                 permits_object.permits_to_parquet(source_iterable=http_gen,
                                                   parquet_file=tmp_file,
                                                   chunks=True)

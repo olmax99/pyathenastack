@@ -38,8 +38,8 @@ class BaseHook(object):
 # Currently not used, since http stream will save parquet file to folder,
 # which is mounted to an S3
 class LocalHook(BaseHook):
-    def __init__(self):
-        super(LocalHook, self).__init__(chunk_size=200)
+    def __init__(self, chunk_size):
+        super(LocalHook, self).__init__(chunk_size=chunk_size)
 
     def __repr__(self):
         return f"LocalHook(chunk_size={self._size}"
@@ -56,8 +56,8 @@ class LocalHook(BaseHook):
 
 
 class HttpHook(BaseHook):
-    def __init__(self):
-        super(HttpHook, self).__init__(chunk_size=200)
+    def __init__(self, chunk_size):
+        super(HttpHook, self).__init__(chunk_size=chunk_size)
 
     def __repr__(self):
         return f"HttpHook(chunk_size={self._size})"

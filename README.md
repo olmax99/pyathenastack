@@ -41,22 +41,6 @@ project as the data source and to be up and running.
 
 ### 1. Preparing the project environment
 
-In the directory  `dockerflaskapi/webflaskapi`:
-
-```
-$ pipenv install
-$ pipenv shell
-
-(webflaskapi)$ pipenv install Flask
-(webflaskapi)$ pipenv install flask-restplus
-(webflaskapi)$ pipenv install flask-redis
-(webflaskapi)$ pipenv install sqlalchemy
-(webflaskapi)$ pipenv install psycopg2
-(webflaskapi)$ pipenv install pytest
-
-
-```
-
 In PyCharm:
 
 In PyCharm > Settings > Project Interpreter:
