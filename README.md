@@ -101,11 +101,11 @@ REDIS_URI=redis://:super_secret2@redis.flaskapi:6379/0
 #### b. Aws credentials file
 
 **NOTE:** The IAM access credentials need to be created manually. It is
-recommended to assign a programatic access to a new developer user with the
-following maximum of permission policies:
+recommended to further reduce the following access policies:
 
 - AmazonS3FullAccess
 - AmazonAthenaFullAccess
+- AWSCloudFormationFullAccess 
 
 ```
 $ aws configure --profile <dev name>
@@ -196,7 +196,7 @@ $ docker logs -f dockerflaskapi_worker.flaskapi_1
 
 #### 4. Create a development table in AWS Athena
 
-```
+```bash
 $ aws cloudformation validate-template --template-body file://cloudformation.development.athena.yml
 
 $ aws cloudformation create-stack --stack-name flaskapi-dev-athena-01 \
@@ -204,8 +204,9 @@ $ aws cloudformation create-stack --stack-name flaskapi-dev-athena-01 \
 
 ```
 
-Verify that partition can be located:
-```
+Verify that the partition can be queried:
+
+```sql
 SELECT application_number, permit_record_id
 FROM dev_flaskapi_01.dev_permits_01
 WHERE partitiontime='2019-09-27';
