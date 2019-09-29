@@ -1,0 +1,437 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Docker Flask Api Open VPN Stack
+
+Parameters:
+  OpenVPNPortNumber:
+    Description: UDP port number opened in SG for OpenVPN
+    Type: Number
+    Default: 1194
+
+  EC2VPNInstanceKeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: SSH Key for OpenVPN EC2 instance
+    # TODO: Automate Keypair creation prior to running this template
+    ConstraintDescription: Key Pair ith this name must exist prior to launch
+
+  LocalConnectionIP:
+    Type: String
+    # TODO: AllowedPattern for ipv4
+    Default: 0.0.0.0/0
+    Description: Local IP Address used for SSH (temp)
+
+  OpenVPNCertBucketName:
+    Description: S3 to store OpenVPN Certs
+    Type: String
+    AllowedPattern: "^[a-zA-Z0-9]+[a-zA-Z0-9-]+[a-zA-Z0-9]+$"
+    Default: docker-flask-api-openvpn-certs-eu-central-1
+
+Mappings:
+  EC2AmiRegionMap:
+    # TODO: Include all most recent AMZLinux AMIs, Evaluate Community "Openvpn Access Server AMI"
+    # TODO: Dynamic retrieval of suitable ami
+    eu-central-1: # Frankfurt
+      "AMAZONLINUXAMI": "ami-00aa4671cbf840d82"   # Amazon Linux 2 AMI (HVM)
+    # eu-west-1: # Ireland
+    #   "AMAZONLINUXAMI": "ami-0559cd7c"   # amzn-ami-hvm-2017.09.1.20180103-x86_64-ebs
+    # eu-west-1: # London
+
+Resources:
+  # ---------------- VPC---------------------------------------
+
+  DockerFlaskApiVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      # TODO: Get from Parameter, because it must not conflict with existing stacks (in case of peering)
+      CidrBlock: 10.0.0.0/22
+      Tags:
+        - Key: Name
+          Value: Docker-Flask-Api-OpenVPN-vpc
+
+  DockerFlaskApiSubnetPublicA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref DockerFlaskApiVPC
+      CidrBlock: 10.0.0.0/24
+      Tags:
+        - Key: Name
+          Value: Docker-Flask-Api-OpenVPN-publicA-sn
+
+  DockerFlaskApiRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref DockerFlaskApiVPC
+      Tags:
+        - Key: Name
+          Value: Docker-Flask-Api-OpenVPN-rtb
+  PublicSubnetRouteAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref DockerFlaskApiSubnetPublicA
+      RouteTableId: !Ref DockerFlaskApiRouteTable
+
+  DockerFlaskApiInternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: Docker-Flask-Api-igw
+  AttachIGW:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref DockerFlaskApiVPC
+      InternetGatewayId: !Ref DockerFlaskApiInternetGateway
+  PublicDefaultRoute:
+    Type: AWS::EC2::Route
+    DependsOn: DockerFlaskApiInternetGateway
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref DockerFlaskApiInternetGateway
+      RouteTableId: !Ref DockerFlaskApiRouteTable
+
+  DockerFlaskApiEIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+  AssociateEIPwithENI:    # Bind EIP to ENI
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      AllocationId: !GetAtt DockerFlaskApiEIP.AllocationId
+      NetworkInterfaceId: !Ref DockerFlaskApiOpenVPNNetworkInterface
+
+  DockerFlaskApiOpenVPNInstanceSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: SG for OpenVPN EC2 Instance
+      VpcId: !Ref DockerFlaskApiVPC
+      SecurityGroupIngress:
+        - IpProtocol: udp
+          FromPort: !Ref OpenVPNPortNumber
+          ToPort: !Ref OpenVPNPortNumber
+          CidrIp: !Ref LocalConnectionIP
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref LocalConnectionIP
+
+  DockerFlaskApiOpenVPNNetworkInterface:
+    Type: AWS::EC2::NetworkInterface
+    Properties:
+      SubnetId: !Ref DockerFlaskApiSubnetPublicA
+      Description: VPC Network Interface attached to public subnet
+      GroupSet:
+      - !Ref DockerFlaskApiOpenVPNInstanceSG
+      SourceDestCheck: false
+      Tags:
+        - Key: Name
+          Value: Docker-Flask-Api-public-eni
+
+  # ---------------- EC2 OpenVPN Instance----------------------
+
+  # Create S3 Role for EC2 OpenVPN Instance
+  EC2OpenVPNInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: "/"
+  EC2OpenVPNInstanceS3AccessPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: EC2OpenVPNInstanceS3AccessPolicy
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Action:
+              - s3:*
+            Effect: Allow
+            Resource: "*"
+      Roles:
+        - !Ref EC2OpenVPNInstanceRole
+  EC2OpenVPNattachPolicyToRole:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: "/"
+      Roles:
+        - !Ref EC2OpenVPNInstanceRole
+  EC2OpenVPNInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !FindInMap [EC2AmiRegionMap, !Ref "AWS::Region", AMAZONLINUXAMI]
+      InstanceType: t2.micro
+      SourceDestCheck: false
+      KeyName: !Ref EC2VPNInstanceKeyName
+      NetworkInterfaces:
+        - NetworkInterfaceId: !Ref DockerFlaskApiOpenVPNNetworkInterface
+          DeviceIndex: 0
+      IamInstanceProfile: !Ref EC2OpenVPNattachPolicyToRole
+      Tags:
+        - Key: Name
+          Value: Docker-Flask-Api-OpenVPN-ec2
+      UserData:
+          # cfn-init runs a configset on the ec2 after having retrieved all necessary template parameters
+          # cfn-signal just signals the Cloudformation build to proceed or finish
+          "Fn::Base64":
+            !Sub |
+              #!/bin/bash
+              yum update -y aws-cfn-bootstrap
+              /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource EC2OpenVPNInstance --configsets OpenVPNInstanceConfigSet --region ${AWS::Region}
+              yum -y update
+              /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource EC2OpenVPNInstance --region ${AWS::Region}
+    CreationPolicy:
+      ResourceSignal:
+        Count: "1"
+        Timeout: PT10M
+    Metadata:
+      # In general, AWS::Cloudformation::Init is used specifically for running cfn-init scripts
+      # DEBUGGING cfn-init: SSH into EC2 and review /var/log/cfn-init.log
+      AWS::CloudFormation::Init:
+        configSets:
+          OpenVPNInstanceConfigSet:
+            - "optional_configure_cfn"
+            - "step0_enable_epel"
+            - "step1_install_software"
+            - "step2_generate_secrets_server"
+            - "step3_generate_client"
+            - "step4_configure_server"
+            - "step5_upload_files"
+        # [OPTIONAL] Allow dynamic inplace update-stack changes by utilizing cfn-hup
+        optional_configure_cfn:
+          files:
+            /etc/cfn/hooks.d/cfn-auto-reloader.conf:
+              content: !Sub |
+                [cfn-auto-reloader-hook]
+                triggers=post.update
+                path=Resources.EC2OpenVPNInstance.Metadata.AWS::Cloudformation::Init
+                action=/opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource EC2OpenVPNInstance --configsets OpenVPNInstanceConfigSet --region ${AWS::Region}
+              mode: "000400"
+              owner: root
+              group: root
+            /etc/cfn/cfn-hup.conf:
+              content: !Sub |
+                [main]
+                stack=${AWS::StackId}
+                region=${AWS::Region}
+                verbose=true
+                interval=1
+              mode: "000400"
+              owner: root
+              group: root
+          services:
+            sysvinit:
+              cfn-hup:
+                enabled: "true"
+                ensureRunning: "true"
+                files:
+                  - "/etc/cfn/cfn-hup.conf"
+                  - "/etc/cfn/hooks.d/cfn-auto-reloader.conf"
+        step0_enable_epel:
+          commands:
+            a_enable_epel:
+              # If epel not enabled continue with command, otherwise skip
+              test: "test -z $(grep -Fx '[amzn2extra-epel]' /etc/yum.repos.d/amzn2-extras.repo)"
+              command: 'amazon-linux-extras install epel'
+              ignoreErrors: "false"
+        step1_install_software:
+          packages:
+            yum:
+              epel-release: []
+              openvpn: []
+              easy-rsa: []
+          commands:
+            a_create_rsadir:
+              test: "[ ! -d /etc/openvpn/easy-rsa ]"
+              command: "mkdir -p /etc/openvpn/easy-rsa"
+            b_change_rsadir:
+              test: "[ -d '/usr/share/easy-rsa/3.0' ]"
+              command: "cp -rf /usr/share/easy-rsa/3.0/* /etc/openvpn/easy-rsa/"
+        step2_generate_secrets_server:
+          # Use easy-rsa to generate the certificate authority (CA) and encryption keys
+          commands:
+            a_generate_secrets_clean_keysdir:
+              cwd: "/etc/openvpn/easy-rsa"
+              test: "! test -e /etc/openvpn/easy-rsa/pki"
+              command: "./easyrsa init-pki"
+            b_generate_secrets_run_build_ca:
+              cwd: "/etc/openvpn/easy-rsa"
+              test: "[ ! -f /etc/openvpn/easy-rsa/pki/ca.crt ]"
+              command: "./easyrsa --batch build-ca nopass"
+            c_generate_secrets_run_build_ca:
+              cwd: "/etc/openvpn/easy-rsa"
+              test: "[ ! -f /etc/openvpn/easy-rsa/pki/dh.pem ]"
+              command: "./easyrsa gen-dh"
+            d_generate_secrets_keypair_request:
+              cwd: "/etc/openvpn/easy-rsa"
+              test: "[[ ! -f /etc/openvpn/easy-rsa/pki/reqs/vpnserver.req && ! -f /etc/openvpn/easy-rsa/pki/private/vpnserver.key ]]"
+              command: "./easyrsa --batch --req-cn=vpnserver gen-req vpnserver nopass"
+            e_generate_secrets_sign_ca:
+              cwd: "/etc/openvpn/easy-rsa"
+              command: "./easyrsa --batch sign server vpnserver"
+            f_generate_secrets_create_server_keysdir:
+              test: "[ ! -d /etc/openvpn/keys ]"
+              command: "mkdir -p /etc/openvpn/keys && chmod 750 /etc/openvpn/keys"
+            g_generate_secrets_cp_certs_to_server:
+              command: cp -a /etc/openvpn/easy-rsa/pki/ca.crt /etc/openvpn/keys/ && cp -a /etc/openvpn/easy-rsa/pki/dh.pem /etc/openvpn/keys/dh2048.pem
+            h_generate_secrets_cp_keys_to_server:
+              command: cp -a /etc/openvpn/easy-rsa/pki/issued/vpnserver.crt /etc/openvpn/keys/ && cp -a /etc/openvpn/easy-rsa/pki/private/vpnserver.key /etc/openvpn/keys/
+            i_generate_secrets_statictlssecret:
+              cwd: "/etc/openvpn"
+              test: "[ ! -f /etc/openvpn/statictlssecret.key ]"
+              command: "openvpn --genkey --secret statictlssecret.key"
+            j_generate_secrets_cp_statictls_to_keys:
+              cwd: "/etc/openvpn"
+              command: cp -a /etc/openvpn/statictlssecret.key /etc/openvpn/keys/
+        step3_generate_client:
+          files:
+            /etc/openvpn/openvpn_client.conf:
+              content: !Sub |
+                client
+                dev tun
+                proto udp
+                remote ${DockerFlaskApiEIP} ${OpenVPNPortNumber}
+                ca ca.crt
+                cert clientuser.crt
+                key clientuser.key
+                tls-client
+                tls-auth statictlssecret.key 1
+                tls-version-min 1.2
+                tls-cipher TLS-ECDHE-RSA-WITH-AES-128-GCM-SHA256:TLS-ECDHE-ECDSA-WITH-AES-128-GCM-SHA256:TLS-ECDHE-RSA-WITH-AES-256-GCM-SHA384:TLS-DHE-RSA-WITH-AES-256-CBC-SHA256
+                cipher AES-256-CBC
+                auth SHA512
+                resolv-retry infinite
+                auth-retry none
+                nobind
+                persist-key
+                persist-tun
+                remote-cert-tls server
+                comp-lzo
+                verb 3
+              mode: "000700"
+              owner: root
+              group: root
+            /etc/openvpn/gen_ovpn_profile.sh:
+              content: !Sub |
+                (cat /etc/openvpn/openvpn_client.conf
+                echo '<key>'
+                cat /etc/openvpn/keys/clientuser.key
+                echo '</key>'
+                echo '<cert>'
+                cat /etc/openvpn/keys/clientuser.crt
+                echo '</cert>'
+                echo '<ca>'
+                cat /etc/openvpn/keys/ca.crt
+                echo '</ca>'
+                ) > /etc/openvpn/keys/openvpn_clientuser.ovpn
+              mode: "000700"
+              owner: root
+              group: root
+          commands:
+            a_generate_clientuser_certs:
+              cwd: "/etc/openvpn/easy-rsa"
+              test: "[[ ! -f /etc/openvpn/easy-rsa/pki/reqs/clientuser.req && ! -f /etc/openvpn/easy-rsa/pki/private/clientuser.key ]]"
+              command: "./easyrsa --batch --req-cn=clientuser gen-req clientuser nopass"
+            b_generate_clientuser_sign_ca:
+              cwd: "/etc/openvpn/easy-rsa"
+              command: "./easyrsa --batch sign client clientuser"
+            c_generate_clientuser_cp_keys_to_server:
+              command: cp -a /etc/openvpn/easy-rsa/pki/issued/clientuser.crt /etc/openvpn/keys/ && cp -a /etc/openvpn/easy-rsa/pki/private/clientuser.key /etc/openvpn/keys/
+            d_generate_clientuser_ovpn_profile:
+              cwd: "/etc/openvpn"
+              test: "[ -f /etc/openvpn/gen_ovpn_profile.sh ]"
+              command: "/etc/openvpn/gen_ovpn_profile.sh"
+        step4_configure_server:
+          files:
+            /etc/openvpn/easy-rsa/server.conf:
+              content: !Sub |
+                port ${OpenVPNPortNumber}
+                proto udp
+                dev tun
+                server 172.16.0.0 255.255.252.0
+                push "redirect-gateway def1"
+                ca /etc/openvpn/keys/ca.crt
+                cert /etc/openvpn/keys/vpnserver.crt
+                key /etc/openvpn/keys/vpnserver.key
+                dh /etc/openvpn/keys/dh2048.pem
+                tls-server
+                tls-auth /etc/openvpn/keys/statictlssecret.key 0
+                tls-version-min 1.2
+                tls-cipher TLS-ECDHE-RSA-WITH-AES-128-GCM-SHA256:TLS-ECDHE-ECDSA-WITH-AES-128-GCM-SHA256:TLS-ECDHE-RSA-WITH-AES-256-GCM-SHA384:TLS-DHE-RSA-WITH-AES-256-CBC-SHA256
+                cipher AES-256-CBC
+                auth SHA512
+                ifconfig-pool-persist ipp.txt
+                keepalive 10 120
+                ping-timer-rem
+                comp-lzo
+                persist-key
+                persist-tun
+                status openvpn-status.log
+                log-append /var/log/openvpn.log
+                verb 3
+                max-clients 100
+                user nobody
+                group nobody
+              mode: "000644"
+              owner: "root"
+              group: "root"
+          commands:
+            a_configure_server_sysctl_ipforward:
+              command: echo "net.ipv4.ip_forward = 1" >> /etc/sysctl.conf
+            b_configure_server_sysctl_reload:
+              command: "sysctl -p"
+            c_configure_server_iptables_nat:
+              command: "iptables -t nat -A POSTROUTING -s 172.16.0.0/22 -o eth0 -j MASQUERADE"
+            d_configure_server_update_config:
+              command: "cp -rf /etc/openvpn/easy-rsa/server.conf /etc/openvpn/server.conf"
+            e_configure_server_start_service:
+              command: "systemctl start openvpn@server.service"
+        step5_upload_files:
+          commands:
+            a_upload_files_compress_tar:
+              cwd: "/etc/openvpn/keys"
+              test: "[ ! -f /etc/openvpn/keys/openVPNClientFiles.tar.xz ]"
+              command: "tar -cvJf openVPNClientFiles.tar.xz ca.crt statictlssecret.key clientuser.key clientuser.crt openvpn_clientuser.ovpn"
+            b_upload_files_to_s3:
+              cwd: "/etc/openvpn/keys"
+              test: "[ -f /etc/openvpn/keys/openVPNClientFiles.tar.xz ]"
+              command: !Sub |
+                aws s3 cp openVPNClientFiles.tar.xz s3://${OpenVPNCertBucketName}/client/openVPNClientFiles.tar.xz
+            c_upload_files_cfn_init_log_to_s3:
+              cwd: "/var/log"
+              test: "test -e /var/log/cfn-init.log"
+              command: !Sub |
+                aws s3 cp /var/log/cfn-init.log s3://${OpenVPNCertBucketName}/logs/configSets_cfn-init.log
+
+
+  # ---------------- S3 Bucket---------------------------------
+
+  DockerFlaskApiOpenVPNCertsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      AccessControl: Private
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      BucketName: !Ref OpenVPNCertBucketName
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: True
+        BlockPublicPolicy: True
+        IgnorePublicAcls: True
+        RestrictPublicBuckets: True
+
+Outputs:
+  DockerFlaskApiS3BucketName:
+    Description: Name of Docker Flask Api OpenVPN S3 Bucket holding the certs
+    Value: !Ref OpenVPNCertBucketName
+  DockerFlaskApiOpenVPNInstanceEIP:
+    Description: OpenVPN Instance elastic IP address
+    Value: !Ref DockerFlaskApiEIP
+  #  DockerFlaskApiEC2InstanceOut:
+  #    Description: OpenVPN Instance
+  #    Value: !Ref EC2OpenVPNInstance
