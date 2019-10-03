@@ -1,0 +1,53 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+    All security groups used within dockerflaskapi stack.
+    - Ecs hosts will only allow traffic from ALB
+    - Alb will allow traffic from 0.0.0.0/0
+
+Parameters:
+
+  ProjectNamePrefix:
+    Description: Used for ecs resources and consistent naming
+    Type: String
+    Default: flaskapi-staging
+
+  TargetVpc:
+    Description: Vpc in which following sg will be deployed in
+    Type: String
+
+Resources:
+
+  FlaskApiEcsSg:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: SG for all cluster resources including tasks, services, and EC2 nodes
+      VpcId: !Ref TargetVpc
+      SecurityGroupIngress:
+        # -1 stands for ALL
+        - IpProtocol: -1
+          SourceSecurityGroupId: !Ref FlaskApiAlbSg
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectNamePrefix}-ecs-hosts-sg
+
+  FlaskApiAlbSg:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: SG for ALB in FlaskApi
+      VpcId: !Ref TargetVpc
+      SecurityGroupIngress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectNamePrefix}-alb-sg
+
+Outputs:
+
+    FlaskApiEcsHostsSgName:
+      Description: Carry over the ECS Hosts SG reference
+      Value: !Ref FlaskApiEcsSg
+
+    FlaskApiAlbSgName:
+      Description: Carry over the ALB SG reference
+      Value: !Ref FlaskApiAlbSg

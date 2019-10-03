@@ -1,0 +1,57 @@
+Description: >
+  Step 1: FlaskApiVpc
+  - pair of public and private subnets spread across two AZ.
+  - Igw with a default route on the public subnets
+  - pair of NAT Gateways (one in each AZ) with default routes to the private subnets
+
+  Step 2: FlaskApiSG
+  - Ecs hosts will only allow traffic from ALB
+  - Alb will allow traffic from 0.0.0.0/0
+
+  Last Modified: 2019-10-02
+
+Resources:
+
+  # ------------------ Master Deployment----------------------------
+
+  FlaskApiVpc:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://s3.eu-central-1.amazonaws.com/flaskapi-cloudformation-eu-central-1/staging/cloudformation.staging.ecs.vpc.yml
+      Parameters:
+        ProjectNamePrefix: !Ref AWS::StackName
+        VpcCidrBase: 172.16.248.0/21
+        PublicSubnetACidr:  172.16.248.0/25
+        PublicSubnetBCidr:  172.16.250.0/25
+        PrivateSubnetACidr: 172.16.249.128/25
+        PrivateSubnetBCidr: 172.16.251.128/25
+
+  FlaskApiSG:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://s3.eu-central-1.amazonaws.com/flaskapi-cloudformation-eu-central-1/staging/cloudformation.staging.ecs.sg.yml
+      Parameters:
+        ProjectNamePrefix: !Ref AWS::StackName
+        TargetVpc: !GetAtt FlaskApiVpc.Outputs.FlaskApiVpcOut
+
+    # ------------------- Templates Bucket----------------------------
+
+    # TODO: Use Ansible for automation outside of cloudformation
+    # TODO: CloudTrail and Notification
+    # Create and upload files manually
+  #  FlaskApiTemplateBucket:
+  #    Type: AWS::S3::Bucket
+  #    Properties:
+  #      AccessControl: Private
+  #      BucketEncryption:
+  #        ServerEncryptionConfiguration:
+  #        - ServerSideEncryptionByDefault:
+  #          SSEAlgorithm: AES256
+  #    BucketName: flaskapi-cloudformation-eu-central-1
+  #    PublicAccessBlockConfiguration:
+  #      BlockPublicAcls: True
+  #      BlockPublicPolicy: True
+  #      IgnorePublicAcls: True
+  #      RestrictPublicBuckets: True
+  #    VersioningConfiguration:
+  #      Status: Enabled

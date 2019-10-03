@@ -12,6 +12,7 @@ with a light-weight DWH system utilizing AWS Athena.
 
 - Secure data in AWS Athena [https://docs.aws.amazon.com/athena/latest/ug/security.html](https://docs.aws.amazon.com/athena/latest/ug/security.html)
 - Use RexRay with ECS [https://aws.amazon.com/blogs/compute/amazon-ecs-and-docker-volume-drivers-amazon-ebs/](https://aws.amazon.com/blogs/compute/amazon-ecs-and-docker-volume-drivers-amazon-ebs/)
+- Integrate JWT with with Flask + schema verfication with endpoints
 
 ## Prerequisites
 
@@ -32,7 +33,7 @@ naming of packages using `async`, which is now a keyword in Python.
 Temporarily downgraded to `3.6.9` until solved.
 
 
-## Quickstart
+## Quickstart Development
 
 ---
 
@@ -248,6 +249,22 @@ $ docker-compose -f docker-compose.testing.yml down
 
 ```
 
+## Quickstart Production
+
+### 1. Preparing for Cfn Deployment
+
+#### a. Create deployment bucket and upload files
+
+See [Master template](https://github.com/olmax99/dockerflaskapi/blob/master/cloudformation.staging.ecs.master.yml) for detailed Bucket specification 
+
+From project directory
+```
+$ aws s3 cp -r cloudformation/staging/ s3://flaskapi-cloudformation-eu-central-1/staging/
+
+$ aws cloudformation --region eu-central-1 create-stack --stack-name flaskapi-staging-master \
+--template-body file://cloudformation/staging/cloudformation.staging.ecs.master.yml
+
+```
 
 ## General Instructions
 
