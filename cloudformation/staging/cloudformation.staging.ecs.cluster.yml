@@ -1,0 +1,345 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: >
+  Ecs cluster including an autoscaling group. The underlying scaling lifecycle is
+  defined in cloudformation.staging.ecs.scaling.yml
+
+Parameters:
+
+  ProjectNamePrefix:
+    Description: Used for ecs resources and consistent naming
+    Type: String
+
+  ClusterAmiTypes:
+    Description: EC2 Instance type of the cluster nodes
+    Type: String
+
+  ClusterAmiId:
+    Description: Always ECS-Optimized AMI
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ecs/optimized-ami/amazon-linux/recommended/image_id
+
+  ClusterMinNodes:
+    Description: Minimum and desired number of nodes
+    Type: Number
+
+  ClusterMaxNodes:
+    Description: Limit of running nodes
+    Type: Number
+
+  TargetVpc:
+    Description: Vpc in which following alb will be deployed to
+    Type: AWS::EC2::VPC::Id
+
+  TargetSubnets:
+    Description: Select a list of target subnets for ALB deployment
+    Type: List<AWS::EC2::Subnet::Id>
+
+  TargetSg:
+    Description: Select the SG for the ALB
+    Type: AWS::EC2::SecurityGroup::Id
+
+Resources:
+
+  FlaskApiEcsCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Sub ${ProjectNamePrefix}-ecs-cluster
+
+  FlaskApiEcsAsg:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      VPCZoneIdentifier: !Ref TargetSubnets
+      LaunchConfigurationName: !Ref FlaskApiEcsLaunchConfig
+      MinSize: !Ref ClusterMinNodes
+      MaxSize: !Ref ClusterMaxNodes
+      DesiredCapacity: !Ref ClusterMinNodes
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectNamePrefix}-ecs-asg
+          PropagateAtLaunch: true
+    CreationPolicy:
+      ResourceSignal:
+        Timeout: PT15M
+    UpdatePolicy:
+      # NOTE: An update policy applies in the following cases:
+      #  - Change the Auto Scaling group's AWS::AutoScaling::LaunchConfiguration or VPCZoneIdentifier property
+      #  - Change the Auto Scaling group's LaunchTemplate property - NOT USED HERE
+      #  - Update an Auto Scaling group that contains instances that don't match the current LaunchConfiguration
+      AutoScalingRollingUpdate:
+        MinInstancesInService: 1
+        # Maximum of instances to update simultaneously
+        MaxBatchSize: 1
+        # Selection of processes that block the rolling update temporarily
+        PauseTime: PT15M
+        SuspendProcesses:
+          - HealthCheck
+          - ReplaceUnhealthy
+          - AZRebalance
+          - AlarmNotification
+          - ScheduledActions
+        WaitOnResourceSignals: true
+
+  FlaskApiEcsLaunchConfig:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      ImageId: !Ref ClusterAmiId
+      InstanceType: !Ref ClusterAmiTypes
+      SecurityGroups:
+        - !Ref TargetSg
+      IamInstanceProfile: !Ref DefaultClusterProfile
+      UserData:
+        "Fn::Base64": !Sub |
+          #!/bin/bash
+          yum install -y https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/linux_amd64/amazon-ssm-agent.rpm
+          yum install -y aws-cfn-bootstrap hibagent
+          /opt/aws/bin/cfn-init -v --region ${AWS::Region} --stack ${AWS::StackName} --resource FlaskApiEcsLaunchConfig --configsets EcsNodeConfigSet
+          /opt/aws/bin/cfn-signal -e $? --region ${AWS::Region} --stack ${AWS::StackName} --resource FlaskApiEcsAsg
+          /usr/bin/enable-ec2-spot-hibernation
+    Metadata:
+      AWS::CloudFormation::Init:
+        configSets:
+          EcsNodeConfigSet:
+            - step1_install_requirements
+            - step2_add_new_instance
+            - step3_configure_instance
+            - step4_enable_services
+        step1_install_requirements:
+          packages:
+            yum:
+              awslogs: []
+        step2_add_new_instance:
+          commands:
+            a_add_instance_to_cluster:
+              command: !Sub echo ECS_CLUSTER=${FlaskApiEcsCluster} >> /etc/ecs/ecs.config
+        step3_configure_instance:
+          files:
+            "/etc/cfn/cfn-hup.conf":
+              mode: 000400
+              owner: root
+              group: root
+              content: !Sub |
+                [main]
+                stack=${AWS::StackId}
+                region=${AWS::Region}
+            "/etc/cfn/hooks.d/cfn-auto-reloader.conf":
+              content: !Sub |
+                [cfn-auto-reloader-hook]
+                triggers=post.update
+                path=Resources.FlaskApiEcsLaunchConfig.Metadata.AWS::CloudFormation::Init
+                action=/opt/aws/bin/cfn-init -v --region ${AWS::Region} --stack ${AWS::StackName} --resource FlaskApiEcsLaunchConfig --configsets EcsNodeConfigSet
+            "/etc/awslogs/awscli.conf":
+              content: !Sub |
+                [plugins]
+                cwlogs = cwlogs
+                [default]
+                region = ${AWS::Region}
+            "/etc/awslogs/awslogs.conf":
+              content: !Sub |
+                [general]
+                state_file = /var/lib/awslogs/agent-state
+
+                [/var/log/dmesg]
+                file = /var/log/dmesg
+                log_group_name = ${FlaskApiEcsCluster}-/var/log/dmesg
+                log_stream_name = ${FlaskApiEcsCluster}
+
+                [/var/log/messages]
+                file = /var/log/messages
+                log_group_name = ${FlaskApiEcsCluster}-/var/log/messages
+                log_stream_name = ${FlaskApiEcsCluster}
+                datetime_format = %b %d %H:%M:%S
+
+                [/var/log/docker]
+                file = /var/log/docker
+                log_group_name = ${FlaskApiEcsCluster}-/var/log/docker
+                log_stream_name = ${FlaskApiEcsCluster}
+                datetime_format = %Y-%m-%dT%H:%M:%S.%f
+
+                [/var/log/ecs/ecs-init.log]
+                file = /var/log/ecs/ecs-init.log.*
+                log_group_name = ${FlaskApiEcsCluster}-/var/log/ecs/ecs-init.log
+                log_stream_name = ${FlaskApiEcsCluster}
+                datetime_format = %Y-%m-%dT%H:%M:%SZ
+
+                [/var/log/ecs/ecs-agent.log]
+                file = /var/log/ecs/ecs-agent.log.*
+                log_group_name = ${FlaskApiEcsCluster}-/var/log/ecs/ecs-agent.log
+                log_stream_name = ${FlaskApiEcsCluster}
+                datetime_format = %Y-%m-%dT%H:%M:%SZ
+
+                [/var/log/ecs/audit.log]
+                file = /var/log/ecs/audit.log.*
+                log_group_name = ${FlaskApiEcsCluster}-/var/log/ecs/audit.log
+                log_stream_name = ${FlaskApiEcsCluster}
+                datetime_format = %Y-%m-%dT%H:%M:%SZ
+        step4_enable_services:
+          services:
+            sysvinit:
+              # update-stack daemon that detects changes
+              cfn-hup:
+                enabled: true
+                ensureRunning: true
+                files:
+                  - /etc/cfn/cfn-hup.conf
+                  - /etc/cfn/hooks.d/cfn-auto-reloader.conf
+              awslogs:
+                enabled: true
+                ensureRunning: true
+                files:
+                  - /etc/awslogs/awslogs.conf
+                  - /etc/awslogs/awscli.conf
+
+  # ---------------------- IAM Profile------------------------------
+
+  # NOTE: This Role will apply to ALL hosts and AL containers that
+  # are running on them.
+
+  DefaultClusterRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      RoleName: !Sub ${ProjectNamePrefix}-${AWS::Region}-default-cluster-role
+      AssumeRolePolicyDocument: |
+        {
+          "Statement": [{
+            "Action": "sts:AssumeRole",
+            "Effect": "Allow",
+            "Principal": {
+              "Service": "ec2.amazonaws.com"
+            }
+          }]
+        }
+      Policies:
+        - PolicyName: ecs-service
+          PolicyDocument: |
+            {
+              "Statement": [{
+                "Effect": "Allow",
+                "Action": [
+                  "ecs:CreateCluster",
+                  "ecs:DeregisterContainerInstance",
+                  "ecs:DiscoverPollEndpoint",
+                  "ecs:Poll",
+                  "ecs:RegisterContainerInstance",
+                  "ecs:StartTelemetrySession",
+                  "ecs:Submit*",
+                  "logs:CreateLogStream",
+                  "logs:PutLogEvents",
+                  "ecr:BatchCheckLayerAvailability",
+                  "ecr:BatchGetImage",
+                  "ecr:GetDownloadUrlForLayer",
+                  "ecr:GetAuthorizationToken",
+                  "ssm:DescribeAssociation",
+                  "ssm:GetDeployablePatchSnapshotForInstance",
+                  "ssm:GetDocument",
+                  "ssm:GetManifest",
+                  "ssm:GetParameters",
+                  "ssm:ListAssociations",
+                  "ssm:ListInstanceAssociations",
+                  "ssm:PutInventory",
+                  "ssm:PutComplianceItems",
+                  "ssm:PutConfigurePackageResult",
+                  "ssm:UpdateAssociationStatus",
+                  "ssm:UpdateInstanceAssociationStatus",
+                  "ssm:UpdateInstanceInformation",
+                  "ec2messages:AcknowledgeMessage",
+                  "ec2messages:DeleteMessage",
+                  "ec2messages:FailMessage",
+                  "ec2messages:GetEndpoint",
+                  "ec2messages:GetMessages",
+                  "ec2messages:SendReply",
+                  "cloudwatch:PutMetricData",
+                  "ec2:DescribeInstanceStatus",
+                  "ds:CreateComputer",
+                  "ds:DescribeDirectories",
+                  "logs:CreateLogGroup",
+                  "logs:CreateLogStream",
+                  "logs:DescribeLogGroups",
+                  "logs:DescribeLogStreams",
+                  "logs:PutLogEvents",
+                  "s3:PutObject",
+                  "s3:GetObject",
+                  "s3:AbortMultipartUpload",
+                  "s3:ListMultipartUploadParts",
+                  "s3:ListBucket",
+                  "s3:ListBucketMultipartUploads"
+                ],
+                "Resource": "*"
+              }]
+            }
+
+  DefaultClusterProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles:
+        - !Ref DefaultClusterRole
+
+  # TODO: What is the full list of use cases of EC2 cluster nodes for SSM?
+  # Example1: SSM Parameter Store for Docker Secrets
+  ClusterSysManagerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Effect: "Allow"
+          Principal:
+            Service:
+            - "ssm.amazonaws.com"
+            - "ec2.amazonaws.com"
+          Action: "sts:AssumeRole"
+      ManagedPolicyArns:
+      - "arn:aws:iam::aws:policy/service-role/AmazonSSMAutomationRole"
+      Path: "/"
+      Policies:
+      - PolicyName: "passrole"
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+          - Effect: "Allow"
+            Action:
+            - "iam:PassRole"
+            Resource:
+            - !GetAtt DefaultClusterRole.Arn
+
+  FlaskApiEcsAsgRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          Action:
+          - 'sts:AssumeRole'
+          Effect: "Allow"
+          Principal:
+            Service:
+            - application-autoscaling.amazonaws.com
+      Path: /
+      Policies:
+      - PolicyName: "ecs-service-autoscaling"
+        PolicyDocument:
+          Statement:
+            Effect: "Allow"
+            Action:
+            - application-autoscaling:*
+            - cloudwatch:DescribeAlarms
+            - cloudwatch:PutMetricAlarm
+            - ecs:DescribeServices
+            - ecs:UpdateService
+            Resource: "*"
+
+Outputs:
+
+  FlaskApiEcsClusterOut:
+    Description: Reference to the flasapi ECS cluster
+    Value: !Ref FlaskApiEcsCluster
+
+  FlaskApiEcsAsgRoleOut:
+    Description: Reference to the autoscaling role of the flaskapi ECS cluster
+    Value: !GetAtt FlaskApiEcsAsgRole.Arn
+
+  TargetFlaskApiEcsAsg:
+    Description: Reference to the flaskapi ECS Autoscaling Group
+    Value: !Ref FlaskApiEcsAsg

@@ -44,6 +44,20 @@ Resources:
         TargetSubnets: !GetAtt FlaskApiVpc.Outputs.FlaskApiPublicSubnetsOut
         TargetSg: !GetAtt FlaskApiSG.Outputs.FlaskApiAlbSgName
 
+  FlaskApiEcsCluster:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://s3.eu-central-1.amazonaws.com/flaskapi-cloudformation-eu-central-1/staging/cloudformation.staging.ecs.cluster.yml
+      Parameters:
+        ProjectNamePrefix: !Ref AWS::StackName
+        ClusterAmiTypes: t2.micro
+        ClusterMinNodes: 2
+        ClusterMaxNodes: 4
+        TargetVpc: !GetAtt FlaskApiVpc.Outputs.FlaskApiVpcOut
+        TargetSubnets: !GetAtt FlaskApiVpc.Outputs.FlaskApiPrivateSubnetsOut
+        TargetSg: !GetAtt FlaskApiSG.Outputs.FlaskApiEcsHostsSgName
+
+
 
     # ------------------- Templates Bucket----------------------------
 

@@ -201,7 +201,7 @@ $ docker logs -f dockerflaskapi_worker.flaskapi_1
 $ aws cloudformation validate-template --template-body file://cloudformation.development.athena.yml
 
 $ aws cloudformation create-stack --stack-name flaskapi-dev-athena-01 \
-  --template-body file://cloudformation.development.athena.yml 
+  --template-body file://cloudformation.development.athena.yml
 
 ```
 
@@ -261,7 +261,7 @@ From project directory
 ```
 $ aws s3 cp --recursive cloudformation/staging/ s3://flaskapi-cloudformation-eu-central-1/staging/
 
-$ 
+$ aws cloudformation validate-template --template-body file://cloudformation/staging/cloudformation.staging.ecs.master.yml
 
 $ aws cloudformation --region eu-central-1 create-stack --stack-name flaskapi-staging-master \
 --template-body file://cloudformation/staging/cloudformation.staging.ecs.master.yml
