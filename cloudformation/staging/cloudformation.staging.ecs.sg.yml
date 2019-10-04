@@ -9,10 +9,9 @@ Parameters:
   ProjectNamePrefix:
     Description: Used for ecs resources and consistent naming
     Type: String
-    Default: flaskapi-staging
 
   TargetVpc:
-    Description: Vpc in which following sg will be deployed in
+    Description: Vpc in which following sg will be deployed to
     Type: String
 
 Resources:

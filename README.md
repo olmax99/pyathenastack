@@ -259,7 +259,9 @@ See [Master template](https://github.com/olmax99/dockerflaskapi/blob/master/clou
 
 From project directory
 ```
-$ aws s3 cp -r cloudformation/staging/ s3://flaskapi-cloudformation-eu-central-1/staging/
+$ aws s3 cp --recursive cloudformation/staging/ s3://flaskapi-cloudformation-eu-central-1/staging/
+
+$ 
 
 $ aws cloudformation --region eu-central-1 create-stack --stack-name flaskapi-staging-master \
 --template-body file://cloudformation/staging/cloudformation.staging.ecs.master.yml

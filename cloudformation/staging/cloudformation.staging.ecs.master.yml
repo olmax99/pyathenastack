@@ -34,6 +34,17 @@ Resources:
         ProjectNamePrefix: !Ref AWS::StackName
         TargetVpc: !GetAtt FlaskApiVpc.Outputs.FlaskApiVpcOut
 
+  FlaskApiAlb:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://s3.eu-central-1.amazonaws.com/flaskapi-cloudformation-eu-central-1/staging/cloudformation.staging.ecs.alb.yml
+      Parameters:
+        ProjectNamePrefix: !Ref AWS::StackName
+        TargetVpc: !GetAtt FlaskApiVpc.Outputs.FlaskApiVpcOut
+        TargetSubnets: !GetAtt FlaskApiVpc.Outputs.FlaskApiPublicSubnetsOut
+        TargetSg: !GetAtt FlaskApiSG.Outputs.FlaskApiAlbSgName
+
+
     # ------------------- Templates Bucket----------------------------
 
     # TODO: Use Ansible for automation outside of cloudformation
