@@ -52,10 +52,20 @@ Resources:
         ProjectNamePrefix: !Ref AWS::StackName
         ClusterAmiTypes: t2.micro
         ClusterMinNodes: 2
-        ClusterMaxNodes: 4
+        # ClusterMaxNodes: 2
         TargetVpc: !GetAtt FlaskApiVpc.Outputs.FlaskApiVpcOut
         TargetSubnets: !GetAtt FlaskApiVpc.Outputs.FlaskApiPrivateSubnetsOut
         TargetSg: !GetAtt FlaskApiSG.Outputs.FlaskApiEcsHostsSgName
+
+  # NOTE: Some maintenance on the ECS cluster might require to actively shut down cluster nodes. If there
+  # are tasks currently running on the target node, they need to be drained before the node termination.
+  FlaskApiMaintenanceHook:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://s3.eu-central-1.amazonaws.com/flaskapi-cloudformation-eu-central-1/staging/cloudformation.staging.ecs.hook.yml
+      Parameters:
+        TargetCluster: !GetAtt FlaskApiEcsCluster.Outputs.FlaskApiEcsClusterOut
+        TargetAutoScalingGrp: !GetAtt FlaskApiEcsCluster.Outputs.TargetFlaskApiEcsAsg
 
 
 

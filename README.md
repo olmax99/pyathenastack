@@ -255,7 +255,8 @@ $ docker-compose -f docker-compose.testing.yml down
 
 #### a. Create deployment bucket and upload files
 
-See [Master template](https://github.com/olmax99/dockerflaskapi/blob/master/cloudformation.staging.ecs.master.yml) for detailed Bucket specification 
+See [Master template](https://github.com/olmax99/dockerflaskapi/blob/master/cloudformation.staging.ecs.master.yml) for 
+detailed Bucket specification. Other than that create the Bucket manually.
 
 From project directory
 ```
@@ -264,9 +265,28 @@ $ aws s3 cp --recursive cloudformation/staging/ s3://flaskapi-cloudformation-eu-
 $ aws cloudformation validate-template --template-body file://cloudformation/staging/cloudformation.staging.ecs.master.yml
 
 $ aws cloudformation --region eu-central-1 create-stack --stack-name flaskapi-staging-master \
---template-body file://cloudformation/staging/cloudformation.staging.ecs.master.yml
+--template-body file://cloudformation/staging/cloudformation.staging.ecs.master.yml \
+--capabilities CAPABILITY_NAMED_IAM
 
 ```
+
+### FAQ ECS 
+
+1. What triggers a scale-up or scale-down of the cluster nodes, respectively? How can it be tested?
+
+  * The current autoscaling configuration simply attempts to reach the desired number of nodes. The 
+  desired cluster size is defined in `cloudformation.staging.ecs.master` with property `ClusterMinNodes`.
+  This means that in the current setup the cluster size is being kept at this size, and does not vary on
+  load or any other events.
+
+  Only an `Unhealthy` signal might lead to temporary changes in the cluster size. However, the autoscaling
+  will always attempt to get to the desired state.
+
+2. How does a scale-up or scale-down of task containers translates to an scale-up or scale-down of the cluster nodes?
+
+  * Currently, there are no interchangeable effects between the ecs cluster nodes and the task containers,
+  other than unhealthy nodes will be replaced by the autoscaling group.
+
 
 ## General Instructions
 

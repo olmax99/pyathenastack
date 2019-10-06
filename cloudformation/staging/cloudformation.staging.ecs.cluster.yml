@@ -23,9 +23,9 @@ Parameters:
     Description: Minimum and desired number of nodes
     Type: Number
 
-  ClusterMaxNodes:
-    Description: Limit of running nodes
-    Type: Number
+  #  ClusterMaxNodes:
+  #    Description: Limit of running nodes
+  #    Type: Number
 
   TargetVpc:
     Description: Vpc in which following alb will be deployed to
@@ -52,7 +52,7 @@ Resources:
       VPCZoneIdentifier: !Ref TargetSubnets
       LaunchConfigurationName: !Ref FlaskApiEcsLaunchConfig
       MinSize: !Ref ClusterMinNodes
-      MaxSize: !Ref ClusterMaxNodes
+      MaxSize: !Ref ClusterMinNodes
       DesiredCapacity: !Ref ClusterMinNodes
       Tags:
         - Key: Name
@@ -88,6 +88,7 @@ Resources:
       SecurityGroups:
         - !Ref TargetSg
       IamInstanceProfile: !Ref DefaultClusterProfile
+      # TODO: Add CloudWatch for cluster nodes
       UserData:
         "Fn::Base64": !Sub |
           #!/bin/bash
