@@ -251,7 +251,33 @@ $ docker-compose -f docker-compose.testing.yml down
 
 ## Quickstart Production
 
-### 1. Preparing for Cfn Deployment
+### 1. Create Elastic Container Registry
+
+#### a. Get an ECR access token and create ECR repositories
+
+**NOTE:** There can be only one registry per AWS account
+
+```sh
+$ make ecr
+
+```
+
+#### b. Push images to ECR
+
+**NOTE:** The local images should exist after having build the project for development.
+
+```sh
+$ export ECR_REPO_PREFIX=<your ECR label>
+
+# Tag Images with the ECR URL prefix
+$ make tag
+
+# Push Images
+$ make push
+
+```
+
+### 1. Launch ECS Cluster
 
 #### a. Create deployment bucket and upload files
 
@@ -259,14 +285,18 @@ See [Master template](https://github.com/olmax99/dockerflaskapi/blob/master/clou
 detailed Bucket specification. Other than that create the Bucket manually.
 
 From project directory
-```
-$ aws s3 cp --recursive cloudformation/staging/ s3://flaskapi-cloudformation-eu-central-1/staging/
-
+```sh
+# OPTIONALLY
 $ aws cloudformation validate-template --template-body file://cloudformation/staging/cloudformation.staging.ecs.master.yml
 
-$ aws cloudformation --region eu-central-1 create-stack --stack-name flaskapi-staging-master \
---template-body file://cloudformation/staging/cloudformation.staging.ecs.master.yml \
---capabilities CAPABILITY_NAMED_IAM
+$ make templates
+
+```
+
+#### b. Launch master template
+
+```sh
+$ make cluster
 
 ```
 

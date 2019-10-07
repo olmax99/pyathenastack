@@ -9,6 +9,10 @@ Description: >
 
 Parameters:
 
+  ProjectNamePrefix:
+    Description: Used for ecs resources and consistent naming
+    Type: String
+
   TargetCluster:
     Description: Target cluster for Lambda to check for running tasks at target cluster instances
     Type: String
@@ -65,6 +69,7 @@ Resources:
   DrainHookLambda:
     Type: AWS::Lambda::Function
     Properties:
+      FunctionName: !Sub ${ProjectNamePrefix}-drainhook-lambda
       Description: Drain all tasks, wait, check if there are no active tasks left, proceed termination
       Environment:
         Variables:

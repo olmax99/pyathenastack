@@ -1,0 +1,183 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: >
+  Service and task definitions for the actual FlaskApi project.
+
+Parameters:
+
+  ProjectNamePrefix:
+    Description: Used for ecs resources and consistent naming
+    Type: String
+
+  FlaskApiVpcId:
+    Description: Reference to the FlaskApi VPC
+    Type: String
+
+  TargetCluster:
+    Description: Target cluster for the tasks and services to run on
+    Type: String
+
+  TargetAlbArn:
+    Description: Target for custom listener rules on top of the existing dummy rule
+    Type: String
+
+  TargetAlbListener:
+    Description: Default listener on port 80 HTTP from ALB definition
+    Type: String
+
+  EcrRepoName:
+    Description: The full name of the newly created registry
+    Type: String
+
+Resources:
+
+  # ---------------------- Load Balancing---------------------------------
+
+  # TODO: Replace with internal vpn traffic only
+  FlaskApiWebGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Sub ${ProjectNamePrefix}-web-tg
+      VpcId: !Ref FlaskApiVpcId
+      Port: 80
+      Protocol: HTTP
+      Matcher:
+        HttpCode: 200-299
+      HealthCheckIntervalSeconds: 10
+      HealthCheckPath: /
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 5
+      UnhealthyThresholdCount: 2
+      TargetType: instance
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: '30'
+
+#  FlaskApiWebListener:
+#    Type: AWS::ElasticLoadBalancingV2::Listener
+#    Properties:
+#      LoadBalancerArn: !Ref TargetAlbArn
+#      Port: 80
+#      Protocol: HTTP
+#      DefaultActions:
+#        - Type: forward
+#          TargetGroupArn: !Ref FlaskApiWebGroup
+
+  WebListenerRule:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      ListenerArn: !Ref TargetAlbListener
+      Priority: 1
+      Conditions:
+        - Field: path-pattern
+          Values:
+            - /
+      Actions:
+        - TargetGroupArn: !Ref FlaskApiWebGroup
+          Type: forward
+
+  # ---------------------- Services & Tasks-------------------------------
+
+  NginxFlaskService:
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster: !Ref TargetCluster
+      DesiredCount: 1
+      TaskDefinition: !Ref NginxFlaskApiTask
+      LaunchType: EC2
+      LoadBalancers:
+        - ContainerName: nginx-flask
+          ContainerPort: 5000
+          TargetGroupArn: !Ref FlaskApiWebGroup
+
+  # ---------------------- Nginx-Flask------------------------------------
+
+  NginxFlaskApiTask:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub ${ProjectNamePrefix}-web
+      RequiresCompatibilities:
+        - 'EC2'
+      Memory: '512'
+      Cpu: '256'
+      ContainerDefinitions:
+        - Name: nginx-flask
+          Image: !Sub ${EcrRepoName}/nginx-flaskapi
+          Essential: true
+          Memory: 256
+          # TODO: Create shared volume with celery worker
+          # MountPoints:
+          #   - SourceVolume: S3Fuse-RexRay
+          #     ConteinerPath: /app/data
+          PortMappings:
+            - ContainerPort: 5000
+          # DependsOn:
+          #   - ContainerName: redis
+          #     Condition: 'HEALTHY'
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-region: !Ref AWS::Region
+              awslogs-group: !Ref FlaskApiLogGroup
+              awslogs-stream-prefix: !Sub ${ProjectNamePrefix}
+      NetworkMode: 'bridge'
+      ExecutionRoleArn: !Ref DefaultServiceExecutionRole
+
+
+  # ---------------------- Service Roles----------------------------------
+
+  # TODO: Restrict s3 + verify if necessary (EC2 Launch Type containers take the same
+  # permissions as the cluster instances
+  DefaultServiceExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      RoleName: !Sub ${ProjectNamePrefix}-${AWS::Region}-default-service-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          Action:
+          - 'sts:AssumeRole'
+          Effect: "Allow"
+          Principal:
+            Service: ecs-tasks.amazonaws.com
+      Policies:
+        - PolicyName: !Sub ecs-service-${AWS::StackName}
+          PolicyDocument:
+            {
+              "Version": "2012-10-17",
+              "Statement": [{
+                "Effect": "Allow",
+                "Action": [
+                  "s3:*",
+                  "ec2:AuthorizeSecurityGroupIngress",
+                  "ec2:Describe*",
+                  "elasticloadbalancing:DeregisterInstancesFromLoadBalancer",
+                  "elasticloadbalancing:Describe*",
+                  "elasticloadbalancing:RegisterInstancesWithLoadBalancer",
+                  "elasticloadbalancing:DeregisterTargets",
+                  "elasticloadbalancing:DescribeTargetGroups",
+                  "elasticloadbalancing:DescribeTargetHealth",
+                  "elasticloadbalancing:RegisterTargets"
+                ],
+                "Resource": "*"
+              }]
+            }
+
+        - PolicyName: !Sub ecs-service-${ProjectNamePrefix}
+          PolicyDocument:
+            Statement:
+              Effect: "Allow"
+              Action:
+                - s3:*
+              Resource: "*"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+
+  # ---------------------- Logs-------------------------------------------
+
+  FlaskApiLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /ecs/${ProjectNamePrefix}
+

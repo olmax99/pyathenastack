@@ -10,9 +10,15 @@ Description: >
 
   Last Modified: 2019-10-02
 
+Parameters:
+
+  EcrRepoPrefix:
+    Description: The full name of the newly created registry. i.e. 123456789.dkr.ecr.eu-central-1.amazonaws.com
+    Type: String
+
 Resources:
 
-  # ------------------ Master Deployment----------------------------
+  # ------------------ Master Deployment Cluster----------------------------
 
   FlaskApiVpc:
     Type: AWS::CloudFormation::Stack
@@ -64,10 +70,23 @@ Resources:
     Properties:
       TemplateURL: https://s3.eu-central-1.amazonaws.com/flaskapi-cloudformation-eu-central-1/staging/cloudformation.staging.ecs.hook.yml
       Parameters:
+        ProjectNamePrefix: !Ref AWS::StackName
         TargetCluster: !GetAtt FlaskApiEcsCluster.Outputs.FlaskApiEcsClusterOut
         TargetAutoScalingGrp: !GetAtt FlaskApiEcsCluster.Outputs.TargetFlaskApiEcsAsg
 
+  # ------------------ FlaskApi Services-----------------------------------
 
+  FlaskApiServices:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://s3.eu-central-1.amazonaws.com/flaskapi-cloudformation-eu-central-1/staging/cloudformation.flaskapi.services.yml
+      Parameters:
+        ProjectNamePrefix: !Ref AWS::StackName
+        FlaskApiVpcId: !GetAtt FlaskApiVpc.Outputs.FlaskApiVpcOut
+        TargetCluster: !GetAtt FlaskApiEcsCluster.Outputs.FlaskApiEcsClusterOut
+        TargetAlbListener: !GetAtt FlaskApiAlb.Outputs.FlaskApiAlbListenerOut
+        TargetAlbArn: !GetAtt FlaskApiAlb.Outputs.FlaskApiAlbNameOut
+        EcrRepoName: !Ref EcrRepoPrefix
 
     # ------------------- Templates Bucket----------------------------
 

@@ -60,6 +60,10 @@ Outputs:
     Description: Reference to the FlaskApi Application Load Balancer
     Value: !Ref FlaskApiAlb
 
+  FlaskApiAlbListenerOut:
+    Description: Reference to the listener used by custom rules in services
+    Value: !Ref AlbListener
+
   FlaskApiAlbUrl:
     Description: URL of the FlaskApi Application Load Balancer
     Value: !GetAtt FlaskApiAlb.DNSName
