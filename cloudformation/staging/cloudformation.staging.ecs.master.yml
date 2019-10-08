@@ -1,3 +1,4 @@
+# TODO: Replace ALB with local network load balancer and remove route 0.0.0.0/0
 Description: >
   Step 1: FlaskApiVpc
   - pair of public and private subnets spread across two AZ.
@@ -14,6 +15,14 @@ Parameters:
 
   EcrRepoPrefix:
     Description: The full name of the newly created registry. i.e. 123456789.dkr.ecr.eu-central-1.amazonaws.com
+    Type: String
+
+  VpnAccessKey:
+    Description: Create Keypair for the Bastion Host manually and provide its name here
+    Type: String
+
+  LocalBaseIp:
+    Description: The Ip for which you want to allow the VPN being used from
     Type: String
 
 Resources:
@@ -39,6 +48,8 @@ Resources:
       Parameters:
         ProjectNamePrefix: !Ref AWS::StackName
         TargetVpc: !GetAtt FlaskApiVpc.Outputs.FlaskApiVpcOut
+        VpnBaseCidr: 172.16.248.0/21
+        # VpnSgId: !GetAtt
 
   FlaskApiAlb:
     Type: AWS::CloudFormation::Stack
@@ -47,7 +58,7 @@ Resources:
       Parameters:
         ProjectNamePrefix: !Ref AWS::StackName
         TargetVpc: !GetAtt FlaskApiVpc.Outputs.FlaskApiVpcOut
-        TargetSubnets: !GetAtt FlaskApiVpc.Outputs.FlaskApiPublicSubnetsOut
+        TargetSubnets: !GetAtt FlaskApiVpc.Outputs.FlaskApiPrivateSubnetsOut
         TargetSg: !GetAtt FlaskApiSG.Outputs.FlaskApiAlbSgName
 
   FlaskApiEcsCluster:
@@ -62,6 +73,7 @@ Resources:
         TargetVpc: !GetAtt FlaskApiVpc.Outputs.FlaskApiVpcOut
         TargetSubnets: !GetAtt FlaskApiVpc.Outputs.FlaskApiPrivateSubnetsOut
         TargetSg: !GetAtt FlaskApiSG.Outputs.FlaskApiEcsHostsSgName
+        EcsKeyPair: !Ref VpnAccessKey
 
   # NOTE: Some maintenance on the ECS cluster might require to actively shut down cluster nodes. If there
   # are tasks currently running on the target node, they need to be drained before the node termination.
@@ -74,7 +86,20 @@ Resources:
         TargetCluster: !GetAtt FlaskApiEcsCluster.Outputs.FlaskApiEcsClusterOut
         TargetAutoScalingGrp: !GetAtt FlaskApiEcsCluster.Outputs.TargetFlaskApiEcsAsg
 
-  # ------------------ FlaskApi Services-----------------------------------
+  # ------------------ VPN Bastion Host--------------------------------------
+
+  # NOTE: Placed in front of Deployment Cluster for allowing access to EcsSg
+  FlaskApiVpn:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://s3.eu-central-1.amazonaws.com/flaskapi-cloudformation-eu-central-1/staging/cloudformation.staging.ecs.vpn.yml
+      Parameters:
+        EC2VPNInstanceKeyName: !Ref VpnAccessKey
+        LocalConnectionIP: !Ref LocalBaseIp
+        TargetVpc: !GetAtt FlaskApiVpc.Outputs.FlaskApiVpcOut
+        TargetSubnet: !GetAtt FlaskApiVpc.Outputs.FlaskApiPublicSubnetAOut
+
+  # ------------------ FlaskApi Services-------------------------------------
 
   FlaskApiServices:
     Type: AWS::CloudFormation::Stack
@@ -88,24 +113,24 @@ Resources:
         TargetAlbArn: !GetAtt FlaskApiAlb.Outputs.FlaskApiAlbNameOut
         EcrRepoName: !Ref EcrRepoPrefix
 
-    # ------------------- Templates Bucket----------------------------
+  # ------------------- Templates Bucket----------------------------
 
-    # TODO: Use Ansible for automation outside of cloudformation
-    # TODO: CloudTrail and Notification
-    # Create and upload files manually
-  #  FlaskApiTemplateBucket:
-  #    Type: AWS::S3::Bucket
-  #    Properties:
-  #      AccessControl: Private
-  #      BucketEncryption:
-  #        ServerEncryptionConfiguration:
-  #        - ServerSideEncryptionByDefault:
-  #          SSEAlgorithm: AES256
-  #    BucketName: flaskapi-cloudformation-eu-central-1
-  #    PublicAccessBlockConfiguration:
-  #      BlockPublicAcls: True
-  #      BlockPublicPolicy: True
-  #      IgnorePublicAcls: True
-  #      RestrictPublicBuckets: True
-  #    VersioningConfiguration:
-  #      Status: Enabled
+  # TODO: Use Ansible for automation outside of cloudformation
+  # TODO: CloudTrail and Notification
+  # Create and upload files manually
+  # FlaskApiTemplateBucket:
+  #   Type: AWS::S3::Bucket
+  #   Properties:
+  #     AccessControl: Private
+  #     BucketEncryption:
+  #       ServerEncryptionConfiguration:
+  #       - ServerSideEncryptionByDefault:
+  #         SSEAlgorithm: AES256
+  #   BucketName: flaskapi-cloudformation-eu-central-1
+  #   PublicAccessBlockConfiguration:
+  #     BlockPublicAcls: True
+  #     BlockPublicPolicy: True
+  #     IgnorePublicAcls: True
+  #     RestrictPublicBuckets: True
+  #   VersioningConfiguration:
+  #     Status: Enabled

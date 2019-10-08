@@ -39,6 +39,10 @@ Parameters:
     Description: Select the SG for the ALB
     Type: AWS::EC2::SecurityGroup::Id
 
+  EcsKeyPair:
+    Description: Forward from cloudformation create-stack input parameters
+    Type: String
+
 Resources:
 
   FlaskApiEcsCluster:
@@ -85,6 +89,7 @@ Resources:
     Properties:
       ImageId: !Ref ClusterAmiId
       InstanceType: !Ref ClusterAmiTypes
+      KeyName: !Ref EcsKeyPair
       SecurityGroups:
         - !Ref TargetSg
       IamInstanceProfile: !Ref DefaultClusterProfile

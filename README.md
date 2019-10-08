@@ -358,6 +358,19 @@ The flask docker is based on a project from *Sebastián Ramírez* [uwsgi-nginx-f
 A few adjustments have been made along the way, but all configuration and
 general instruction references are holding for this project, too.
 
+### Log in to Production Bastion Host
+
+SSH forward into bastion host in order to further jump through private network instances. You need to 
+use the private IP address!
+
+```sh
+# Activate the vpn connection in network settings
+$ make vpn
+
+$ ssh -A -i /path/to/<VPN Access Key>.pem ec2-user@<Private IP>
+
+```
+
 
 ## Author
 

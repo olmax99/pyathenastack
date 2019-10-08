@@ -14,6 +14,10 @@ Parameters:
     Description: Vpc in which following sg will be deployed to
     Type: String
 
+  VpnBaseCidr:
+    Description: Ingress for VPN to cluster resources
+    Type: String
+
 Resources:
 
   FlaskApiEcsSg:
@@ -22,9 +26,16 @@ Resources:
       GroupDescription: SG for all cluster resources including tasks, services, and EC2 nodes
       VpcId: !Ref TargetVpc
       SecurityGroupIngress:
+        # TODO: Are all instances open to the world? CHANGE!!
         # -1 stands for ALL
         - IpProtocol: -1
           SourceSecurityGroupId: !Ref FlaskApiAlbSg
+        # This is for local access through vpn
+        - IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          CidrIp: !Ref VpnBaseCidr
+          Description: VPN local network ingress for maintenance
       Tags:
         - Key: Name
           Value: !Sub ${ProjectNamePrefix}-ecs-hosts-sg

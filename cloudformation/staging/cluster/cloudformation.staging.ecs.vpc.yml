@@ -171,12 +171,14 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub ${ProjectNamePrefix}-privateA-rtb
+
   PrivateRouteA:
     Type: AWS::EC2::Route
     Properties:
       RouteTableId: !Ref PrivateRtbA
       DestinationCidrBlock: 0.0.0.0/0
       NatGatewayId: !Ref NatGwA
+
   PrivateSubnetARtbAssociate:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
@@ -190,12 +192,14 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub ${ProjectNamePrefix}-privateB-rtb
+
   PrivateRouteB:
     Type: AWS::EC2::Route
     Properties:
       RouteTableId: !Ref PrivateRtbB
       DestinationCidrBlock: 0.0.0.0/0
       NatGatewayId: !Ref NatGwB
+
   PrivateSubnetBRtbAssociate:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:

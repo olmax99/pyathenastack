@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Docker Flask Api Open VPN Stack
+Description: Flask Api Open VPN Stack
 
 Parameters:
   OpenVPNPortNumber:
@@ -10,12 +10,10 @@ Parameters:
   EC2VPNInstanceKeyName:
     Type: AWS::EC2::KeyPair::KeyName
     Description: SSH Key for OpenVPN EC2 instance
-    # TODO: Automate Keypair creation prior to running this template
-    ConstraintDescription: Key Pair ith this name must exist prior to launch
+    ConstraintDescription: Key Pair th this name must exist prior to launch
 
   LocalConnectionIP:
     Type: String
-    # TODO: AllowedPattern for ipv4
     Default: 0.0.0.0/0
     Description: Local IP Address used for SSH (temp)
 
@@ -23,7 +21,15 @@ Parameters:
     Description: S3 to store OpenVPN Certs
     Type: String
     AllowedPattern: "^[a-zA-Z0-9]+[a-zA-Z0-9-]+[a-zA-Z0-9]+$"
-    Default: docker-flask-api-openvpn-certs-eu-central-1
+    Default: flaskapi-staging-openvpn-certs-eu-central-1
+
+  TargetVpc:
+    Description: Vpc in which following VPN will be deployed to
+    Type: AWS::EC2::VPC::Id
+
+  TargetSubnet:
+    Description: Select the target subnet for ALB deployment
+    Type: AWS::EC2::Subnet::Id
 
 Mappings:
   EC2AmiRegionMap:
@@ -36,96 +42,48 @@ Mappings:
     # eu-west-1: # London
 
 Resources:
-  # ---------------- VPC---------------------------------------
 
-  DockerFlaskApiVPC:
-    Type: AWS::EC2::VPC
-    Properties:
-      # TODO: Get from Parameter, because it must not conflict with existing stacks (in case of peering)
-      CidrBlock: 10.0.0.0/22
-      Tags:
-        - Key: Name
-          Value: Docker-Flask-Api-OpenVPN-vpc
-
-  DockerFlaskApiSubnetPublicA:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref DockerFlaskApiVPC
-      CidrBlock: 10.0.0.0/24
-      Tags:
-        - Key: Name
-          Value: Docker-Flask-Api-OpenVPN-publicA-sn
-
-  DockerFlaskApiRouteTable:
-    Type: AWS::EC2::RouteTable
-    Properties:
-      VpcId: !Ref DockerFlaskApiVPC
-      Tags:
-        - Key: Name
-          Value: Docker-Flask-Api-OpenVPN-rtb
-  PublicSubnetRouteAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      SubnetId: !Ref DockerFlaskApiSubnetPublicA
-      RouteTableId: !Ref DockerFlaskApiRouteTable
-
-  DockerFlaskApiInternetGateway:
-    Type: AWS::EC2::InternetGateway
-    Properties:
-      Tags:
-        - Key: Name
-          Value: Docker-Flask-Api-igw
-  AttachIGW:
-    Type: AWS::EC2::VPCGatewayAttachment
-    Properties:
-      VpcId: !Ref DockerFlaskApiVPC
-      InternetGatewayId: !Ref DockerFlaskApiInternetGateway
-  PublicDefaultRoute:
-    Type: AWS::EC2::Route
-    DependsOn: DockerFlaskApiInternetGateway
-    Properties:
-      DestinationCidrBlock: 0.0.0.0/0
-      GatewayId: !Ref DockerFlaskApiInternetGateway
-      RouteTableId: !Ref DockerFlaskApiRouteTable
-
-  DockerFlaskApiEIP:
+  FlaskApiEIP:
     Type: AWS::EC2::EIP
     Properties:
       Domain: vpc
+
   AssociateEIPwithENI:    # Bind EIP to ENI
     Type: AWS::EC2::EIPAssociation
     Properties:
-      AllocationId: !GetAtt DockerFlaskApiEIP.AllocationId
-      NetworkInterfaceId: !Ref DockerFlaskApiOpenVPNNetworkInterface
+      AllocationId: !GetAtt FlaskApiEIP.AllocationId
+      NetworkInterfaceId: !Ref FlaskApiOpenVPNNetworkInterface
 
-  DockerFlaskApiOpenVPNInstanceSG:
+  FlaskApiOpenVPNInstanceSG:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: SG for OpenVPN EC2 Instance
-      VpcId: !Ref DockerFlaskApiVPC
+      VpcId: !Ref TargetVpc
       SecurityGroupIngress:
         - IpProtocol: udp
           FromPort: !Ref OpenVPNPortNumber
           ToPort: !Ref OpenVPNPortNumber
           CidrIp: !Ref LocalConnectionIP
-        - IpProtocol: tcp
-          FromPort: 22
-          ToPort: 22
-          CidrIp: !Ref LocalConnectionIP
+          # UNCOMMENT FOR TROUBLESHOOTING ONLY!
+          # This will allow access from public IP
+          # - IpProtocol: tcp
+          #   FromPort: 22
+          #   ToPort: 22
+          #   CidrIp: !Ref LocalConnectionIP
 
-  DockerFlaskApiOpenVPNNetworkInterface:
+  FlaskApiOpenVPNNetworkInterface:
     Type: AWS::EC2::NetworkInterface
     Properties:
-      SubnetId: !Ref DockerFlaskApiSubnetPublicA
+      SubnetId: !Ref TargetSubnet
       Description: VPC Network Interface attached to public subnet
       GroupSet:
-      - !Ref DockerFlaskApiOpenVPNInstanceSG
+      - !Ref FlaskApiOpenVPNInstanceSG
       SourceDestCheck: false
       Tags:
         - Key: Name
-          Value: Docker-Flask-Api-public-eni
+          Value: flask-api-vpn-public-eni
 
-  # ---------------- EC2 OpenVPN Instance----------------------
+  # ---------------- EC2 OpenVPN Role-------------------------------
 
   # Create S3 Role for EC2 OpenVPN Instance
   EC2OpenVPNInstanceRole:
@@ -141,6 +99,7 @@ Resources:
             Action:
               - sts:AssumeRole
       Path: "/"
+
   EC2OpenVPNInstanceS3AccessPolicy:
     Type: AWS::IAM::Policy
     Properties:
@@ -154,12 +113,16 @@ Resources:
             Resource: "*"
       Roles:
         - !Ref EC2OpenVPNInstanceRole
+  
   EC2OpenVPNattachPolicyToRole:
     Type: AWS::IAM::InstanceProfile
     Properties:
       Path: "/"
       Roles:
         - !Ref EC2OpenVPNInstanceRole
+
+  # ---------------- EC2 OpenVPN Instance--------------------------
+
   EC2OpenVPNInstance:
     Type: AWS::EC2::Instance
     Properties:
@@ -168,12 +131,12 @@ Resources:
       SourceDestCheck: false
       KeyName: !Ref EC2VPNInstanceKeyName
       NetworkInterfaces:
-        - NetworkInterfaceId: !Ref DockerFlaskApiOpenVPNNetworkInterface
+        - NetworkInterfaceId: !Ref FlaskApiOpenVPNNetworkInterface
           DeviceIndex: 0
       IamInstanceProfile: !Ref EC2OpenVPNattachPolicyToRole
       Tags:
         - Key: Name
-          Value: Docker-Flask-Api-OpenVPN-ec2
+          Value: flask-api-openVpn-ec2
       UserData:
           # cfn-init runs a configset on the ec2 after having retrieved all necessary template parameters
           # cfn-signal just signals the Cloudformation build to proceed or finish
@@ -294,7 +257,7 @@ Resources:
                 client
                 dev tun
                 proto udp
-                remote ${DockerFlaskApiEIP} ${OpenVPNPortNumber}
+                remote ${FlaskApiEIP} ${OpenVPNPortNumber}
                 ca ca.crt
                 cert clientuser.crt
                 key clientuser.key
@@ -327,7 +290,7 @@ Resources:
                 echo '<ca>'
                 cat /etc/openvpn/keys/ca.crt
                 echo '</ca>'
-                ) > /etc/openvpn/keys/openvpn_clientuser.ovpn
+                ) > /etc/openvpn/keys/flaskapi_vpn_clientuser.ovpn
               mode: "000700"
               owner: root
               group: root
@@ -392,25 +355,162 @@ Resources:
               command: "systemctl start openvpn@server.service"
         step5_upload_files:
           commands:
-            a_upload_files_compress_tar:
+            a_upload_files_compress_zip:
               cwd: "/etc/openvpn/keys"
-              test: "[ ! -f /etc/openvpn/keys/openVPNClientFiles.tar.xz ]"
-              command: "tar -cvJf openVPNClientFiles.tar.xz ca.crt statictlssecret.key clientuser.key clientuser.crt openvpn_clientuser.ovpn"
+              test: "[ ! -f /etc/openvpn/keys/FlaskApiVPNClient.zip ]"
+              command: "zip FlaskApiVPNClient.zip ca.crt statictlssecret.key clientuser.key clientuser.crt flaskapi_vpn_clientuser.ovpn"
             b_upload_files_to_s3:
               cwd: "/etc/openvpn/keys"
-              test: "[ -f /etc/openvpn/keys/openVPNClientFiles.tar.xz ]"
+              test: "[ -f /etc/openvpn/keys/FlaskApiVPNClient.zip ]"
               command: !Sub |
-                aws s3 cp openVPNClientFiles.tar.xz s3://${OpenVPNCertBucketName}/client/openVPNClientFiles.tar.xz
+                aws s3 cp FlaskApiVPNClient.zip s3://${OpenVPNCertBucketName}/client/FlaskApiVPNClient.zip
+            # a_upload_files_compress_tar:
+            #   cwd: "/etc/openvpn/keys"
+            #   test: "[ ! -f /etc/openvpn/keys/openVPNClientFiles.tar.xz ]"
+            #   command: "tar -cvJf FlaskApiVPNClient.tar.xz ca.crt statictlssecret.key clientuser.key clientuser.crt flaskapi_vpn_clientuser.ovpn"
+            # b_upload_files_to_s3:
+            #   cwd: "/etc/openvpn/keys"
+            #   test: "[ -f /etc/openvpn/keys/openVPNClientFiles.tar.xz ]"
+            #   command: !Sub |
+            #   aws s3 cp FlaskApiVPNClient.tar.xz s3://${OpenVPNCertBucketName}/client/openVPNClientFiles.tar.xz
             c_upload_files_cfn_init_log_to_s3:
               cwd: "/var/log"
               test: "test -e /var/log/cfn-init.log"
               command: !Sub |
                 aws s3 cp /var/log/cfn-init.log s3://${OpenVPNCertBucketName}/logs/configSets_cfn-init.log
 
+  # ---------------- Lambda------------------------------------
+
+  cleanupBucketOnDelete:
+    DependsOn: cleanupS3OnDeleteLambda
+    Type: Custom::cleanupbucket
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - "cleanupS3OnDeleteLambda"
+          - "Arn"
+      BucketName: !Ref FlaskApiOpenVPNCertsBucket
+    
+  cleanupS3OnDeleteLambda:
+    # Removes all objects from FlaskApiOpenVPNCertsBucket upon cfn Delete
+    DependsOn: FlaskApiOpenVPNCertsBucket
+    Type: "AWS::Lambda::Function"
+    Properties:
+      Code:
+        ZipFile: !Sub |
+          import boto3
+          import json
+          import logging
+          # module cfnresponse does not exist for python3.7
+          # import cfnresponse
+          # Will yield a warning, but is currently the only solution for python3.7
+          # since inline code cannot import third party packages
+          from botocore.vendored import requests
+          from botocore.exceptions import ClientError
+
+          logger = logging.getLogger(__name__)
+
+          def setup(level='DEBUG', boto_level=None, **kwargs):
+              logging.root.setLevel(level)
+
+              if not boto_level:
+                  boto_level = level
+
+              logging.getLogger('boto').setLevel(boto_level)
+              logging.getLogger('boto3').setLevel(boto_level)
+              logging.getLogger('botocore').setLevel(boto_level)
+              logging.getLogger('urllib3').setLevel(boto_level)
+
+          try:
+              setup('DEBUG', formatter_cls=None, boto_level='ERROR')
+          except Exception as e:
+              logger.error(e, exc_info=True)
+
+          def clean_up_bucket(target_bucket):
+              logger.info(f"Clean content of bucket {target_bucket}.")
+              s3_resource = boto3.resource('s3')
+              try:
+                  bucket_response = s3_resource.Bucket(target_bucket).load()
+              except ClientError as e:
+                  logger.info(f"s3:://{target_bucket} not found. {e}")
+                  return
+              else:
+                  bucket_obj = s3_resource.Bucket(target_bucket)
+                  bucket_obj.objects.all().delete()
+
+          def handler(event, context):
+              # helper(event, context)
+
+              response_data = {}
+              # NOTE: The status value sent by the custom resource provider must be either SUCCESS or FAILED!!
+              try:
+                  bucket = event['ResourceProperties']['BucketName']
+                  if event['RequestType'] == 'Delete':
+                      clean_up_bucket(bucket)
+                  if event['RequestType'] == 'Update':
+                      logger.info(f"custom::cleanupbucket update. Target bucket: {bucket}")
+                  if event['RequestType'] == 'Create':
+                      logger.info(f"custom::cleanupbucket create. Target bucket: {bucket}")
+                  send_response_cfn(event, context, "SUCCESS")
+              except Exception as e:
+                  logger.info(str(e))
+                  send_response_cfn(event, context, "FAILED")
+
+          def send_response_cfn(event, context, response_status):
+              response_body = {'Status': response_status,
+                               'Reason': 'Log stream name: ' + context.log_stream_name,
+                               'PhysicalResourceId': context.log_stream_name,
+                               'StackId': event['StackId'],
+                               'RequestId': event['RequestId'],
+                               'LogicalResourceId': event['LogicalResourceId'],
+                               'Data': json.loads("{}")}
+              # Sends the response signal to the respective custom resource request
+              requests.put(event['ResponseURL'], data=json.dumps(response_body))
+      Description: cleanup Bucket on Delete Lambda Lambda function.
+      Handler: index.handler
+      Role: !GetAtt CleanupS3ExecutionRole.Arn
+      Runtime: python3.7
+      Timeout: 100
+
+  CleanupS3ExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: "/"
+
+  CleanupS3ExecutionPolicy:
+    DependsOn:
+      - CleanupS3ExecutionRole
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: DeleteS3BucketLogsRolePolicy
+      Roles:
+        - Ref: CleanupS3ExecutionRole
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - logs:*
+            Resource:
+              - arn:aws:logs:*:*:*
+          - Effect: Allow
+            Action:
+              - s3:*
+            Resource:
+              - "*"
 
   # ---------------- S3 Bucket---------------------------------
 
-  DockerFlaskApiOpenVPNCertsBucket:
+  FlaskApiOpenVPNCertsBucket:
     Type: AWS::S3::Bucket
     Properties:
       AccessControl: Private
@@ -426,12 +526,12 @@ Resources:
         RestrictPublicBuckets: True
 
 Outputs:
-  DockerFlaskApiS3BucketName:
-    Description: Name of Docker Flask Api OpenVPN S3 Bucket holding the certs
+
+  FlaskApiS3BucketName:
+    Description: Name of FlasApi OpenVPN S3 Bucket holding the certs
     Value: !Ref OpenVPNCertBucketName
-  DockerFlaskApiOpenVPNInstanceEIP:
+
+  FlaskApiOpenVPNInstanceEIP:
     Description: OpenVPN Instance elastic IP address
-    Value: !Ref DockerFlaskApiEIP
-  #  DockerFlaskApiEC2InstanceOut:
-  #    Description: OpenVPN Instance
-  #    Value: !Ref EC2OpenVPNInstance
+    Value: !Ref FlaskApiEIP
+
