@@ -68,48 +68,85 @@ Resources:
 
   # ---------------------- Services & Tasks-------------------------------
 
-  NginxFlaskService:
+  FlaskApiService:
     Type: AWS::ECS::Service
     Properties:
       Cluster: !Ref TargetCluster
       DesiredCount: 1
-      TaskDefinition: !Ref NginxFlaskApiTask
+      TaskDefinition: !Ref FlaskApiTask
       LaunchType: EC2
       LoadBalancers:
-        - ContainerName: nginx-flask
+        - ContainerName: nginx-flaskapi
           ContainerPort: 5000
           TargetGroupArn: !Ref FlaskApiWebGroup
 
-  # ---------------------- Nginx-Flask------------------------------------
+  # ---------------------- Nginx-Flask-Redis------------------------------------
 
-  NginxFlaskApiTask:
+  FlaskApiTask:
     Type: AWS::ECS::TaskDefinition
     Properties:
-      Family: !Sub ${ProjectNamePrefix}-web
+      Family: !Sub ${ProjectNamePrefix}-api
       RequiresCompatibilities:
         - 'EC2'
-      Memory: '512'
-      Cpu: '256'
+      # Memory: '512'
+      # Minimum guaranteed compute
+      Cpu: '512'
       ContainerDefinitions:
-        - Name: nginx-flask
+        - Name: nginx-flaskapi
           Image: !Sub ${EcrRepoName}/nginx-flaskapi
-          Essential: true
-          Memory: 256
+          # Soft limit, which can be escaped
+          MemoryReservation: 256
+          Environment:
+            - Name: 'FLASK_APP'
+              Value: 'flaskapi/api.py'
+            - Name: 'RUN_MODE'
+              Value: 'PRODUCTION'
+            - Name: 'C_FORCE_ROOT'
+              Value: 'true'
+            - Name: 'REDIS_URI'
+              Value: 'redis://super_secret@redis-flaskapi:6379/0'
           # TODO: Create shared volume with celery worker
           # MountPoints:
           #   - SourceVolume: S3Fuse-RexRay
           #     ConteinerPath: /app/data
           PortMappings:
             - ContainerPort: 5000
-          # DependsOn:
-          #   - ContainerName: redis
-          #     Condition: 'HEALTHY'
+          DependsOn:
+            - ContainerName: redis-flaskapi
+              Condition: 'START'
           LogConfiguration:
             LogDriver: awslogs
             Options:
               awslogs-region: !Ref AWS::Region
               awslogs-group: !Ref FlaskApiLogGroup
-              awslogs-stream-prefix: !Sub ${ProjectNamePrefix}
+              awslogs-stream-prefix: !Sub ${ProjectNamePrefix}-nginx
+        - Name: redis-flaskapi
+          Image: !Sub ${EcrRepoName}/redis:5.0-alpine
+          MemoryReservation: 256
+          Environment:
+            - Name: 'REDIS_PASSWD'
+              Value: 'super_secret'
+          MountPoints:
+            - ContainerPath: '/data'
+              ReadOnly: false
+              SourceVolume: !Sub ${ProjectNamePrefix}-redis-data
+          PortMappings:
+            - ContainerPort: 6379
+              HostPort: 6379
+          EntryPoint:
+            - 'redis-server'
+          # TODO: Get REDIS_PASSWD from secrets
+          Command:
+            - '--requirepass'
+            - 'super_secret'
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-region: !Ref AWS::Region
+              awslogs-group: !Ref FlaskApiLogGroup
+              awslogs-stream-prefix: !Sub ${ProjectNamePrefix}-redis
+      Volumes:
+        - Name: !Sub ${ProjectNamePrefix}-redis-data
       NetworkMode: 'bridge'
       ExecutionRoleArn: !Ref DefaultServiceExecutionRole
 
