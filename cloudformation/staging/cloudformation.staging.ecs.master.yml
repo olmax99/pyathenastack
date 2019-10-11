@@ -49,7 +49,6 @@ Resources:
         ProjectNamePrefix: !Ref AWS::StackName
         TargetVpc: !GetAtt FlaskApiVpc.Outputs.FlaskApiVpcOut
         VpnBaseCidr: 172.16.248.0/21
-        # VpnSgId: !GetAtt
 
   FlaskApiAlb:
     Type: AWS::CloudFormation::Stack
@@ -67,7 +66,7 @@ Resources:
       TemplateURL: https://s3.eu-central-1.amazonaws.com/flaskapi-cloudformation-eu-central-1/staging/cloudformation.staging.ecs.cluster.yml
       Parameters:
         ProjectNamePrefix: !Ref AWS::StackName
-        ClusterAmiTypes: t2.micro
+        ClusterAmiTypes: t3.micro
         ClusterMinNodes: 2
         # ClusterMaxNodes: 2
         TargetVpc: !GetAtt FlaskApiVpc.Outputs.FlaskApiVpcOut

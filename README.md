@@ -269,6 +269,8 @@ $ make ecr
 ```sh
 $ export ECR_REPO_PREFIX=<your ECR label>
 
+
+
 # Tag Images with the ECR URL prefix
 $ make tag
 
@@ -299,6 +301,19 @@ $ make templates
 $ make cluster
 
 ```
+
+#### c. Connect to Swagger GUI
+
+```sh
+# Activate ovpn connection throught network settings
+$ make vpn
+
+# Create ssh remote forwarding tunnel
+$ ssh -R 8080:<internal-flaskapi-staging-alb-endpoint>:80 -i <bastion_key> ec2-user@172.16.248.53
+
+```
+
+In browser use: `http://<internal-flaskapi-staging-alb-endpoint>:80/`
 
 ### FAQ ECS 
 

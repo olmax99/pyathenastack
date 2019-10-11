@@ -27,6 +27,7 @@ Resources:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
       Name: !Sub ${ProjectNamePrefix}-alb
+      Scheme: internal
       Subnets: !Ref TargetSubnets
       SecurityGroups:
         - !Ref TargetSg

@@ -127,7 +127,7 @@ Resources:
     Type: AWS::EC2::Instance
     Properties:
       ImageId: !FindInMap [EC2AmiRegionMap, !Ref "AWS::Region", AMAZONLINUXAMI]
-      InstanceType: t2.micro
+      InstanceType: t3.micro
       SourceDestCheck: false
       KeyName: !Ref EC2VPNInstanceKeyName
       NetworkInterfaces:

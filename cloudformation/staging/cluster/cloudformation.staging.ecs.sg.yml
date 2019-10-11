@@ -40,6 +40,7 @@ Resources:
         - Key: Name
           Value: !Sub ${ProjectNamePrefix}-ecs-hosts-sg
 
+  # NOTE: This Load Balancer will only allow internal connections
   FlaskApiAlbSg:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -47,7 +48,7 @@ Resources:
       VpcId: !Ref TargetVpc
       SecurityGroupIngress:
         - IpProtocol: -1
-          CidrIp: 0.0.0.0/0
+          CidrIp: !Ref VpnBaseCidr
       Tags:
         - Key: Name
           Value: !Sub ${ProjectNamePrefix}-alb-sg

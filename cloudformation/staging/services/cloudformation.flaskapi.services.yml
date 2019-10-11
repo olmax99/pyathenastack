@@ -33,14 +33,15 @@ Resources:
 
   # ---------------------- Load Balancing---------------------------------
 
-  # TODO: Replace with internal vpn traffic only
   FlaskApiWebGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
       Name: !Sub ${ProjectNamePrefix}-web-tg
       VpcId: !Ref FlaskApiVpcId
+      # This port is overridden by dynamic port mapping
       Port: 80
       Protocol: HTTP
+      # ---------- Health Check Settings------------
       Matcher:
         HttpCode: 200-299
       HealthCheckIntervalSeconds: 10
@@ -58,10 +59,11 @@ Resources:
     Properties:
       ListenerArn: !Ref TargetAlbListener
       Priority: 1
+      # Forward all traffic coming from load balancer to FlaskApiWebGroup
       Conditions:
-        - Field: path-pattern
+        - Field: host-header
           Values:
-            - /
+            - '*.elb.amazonaws.com'
       Actions:
         - TargetGroupArn: !Ref FlaskApiWebGroup
           Type: forward
@@ -111,6 +113,7 @@ Resources:
           #     ConteinerPath: /app/data
           PortMappings:
             - ContainerPort: 5000
+              HostPort: 0
           DependsOn:
             - ContainerName: redis-flaskapi
               Condition: 'START'
