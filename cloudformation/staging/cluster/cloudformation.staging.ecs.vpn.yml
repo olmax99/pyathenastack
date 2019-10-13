@@ -136,7 +136,7 @@ Resources:
       IamInstanceProfile: !Ref EC2OpenVPNattachPolicyToRole
       Tags:
         - Key: Name
-          Value: flask-api-openVpn-ec2
+          Value: flaskapi-openVpn-ec2
       UserData:
           # cfn-init runs a configset on the ec2 after having retrieved all necessary template parameters
           # cfn-signal just signals the Cloudformation build to proceed or finish

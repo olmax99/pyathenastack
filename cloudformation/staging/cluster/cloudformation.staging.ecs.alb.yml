@@ -43,14 +43,14 @@ Resources:
       Protocol: HTTP
       DefaultActions:
         - Type: forward
-          TargetGroupArn: !Ref DummyTargetGroup
+          TargetGroupArn: !Ref DefaultTargetGroup
 
   # NOTE: The Dummy Target Group is required by the Alb definition. The actual TGs
   # will be defined in the respective service definitions.
-  DummyTargetGroup:
+  DefaultTargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
-      Name: !Sub ${ProjectNamePrefix}-dummy-tg
+      Name: !Sub ${ProjectNamePrefix}-default-tg
       VpcId: !Ref TargetVpc
       Port: 80
       Protocol: HTTP

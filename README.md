@@ -302,14 +302,14 @@ $ make cluster
 
 ```
 
-#### c. Connect to Swagger GUI
+#### c. Connect to FlaskApi
 
 ```sh
 # Activate ovpn connection throught network settings
 $ make vpn
 
 # Create ssh remote forwarding tunnel
-$ ssh -R 8080:<internal-flaskapi-staging-alb-endpoint>:80 -i <bastion_key> ec2-user@172.16.248.53
+$ ssh -R 8080:<internal-flaskapi-staging-alb-endpoint>:80 -i <bastion_key> ec2-user@<private_bastion_ip> &
 
 ```
 

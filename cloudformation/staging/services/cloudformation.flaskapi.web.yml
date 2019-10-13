@@ -31,7 +31,7 @@ Parameters:
 
 Resources:
 
-  # ---------------------- Load Balancing---------------------------------
+  # ---------------------- Load Balancing Nginx---------------------------------
 
   FlaskApiWebGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
@@ -68,23 +68,85 @@ Resources:
         - TargetGroupArn: !Ref FlaskApiWebGroup
           Type: forward
 
+  # ---------------------- Load Balancing Flower-------------------------------
+
+  CustomFlowerListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref TargetAlbArn
+      Port: 5555
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref FlaskApiFlowerGroup
+
+  FlaskApiFlowerGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Sub ${ProjectNamePrefix}-flower-tg
+      VpcId: !Ref FlaskApiVpcId
+      Port: 5555
+      Protocol: HTTP
+      # ---------- Health Check Settings------------
+      Matcher:
+        HttpCode: 200-299
+      HealthCheckIntervalSeconds: 10
+      HealthCheckPath: /
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 5
+      UnhealthyThresholdCount: 2
+      TargetType: instance
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: '30'
+
+  FlowerListenerRule:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      ListenerArn: !Ref CustomFlowerListener
+      Priority: 1
+      # Forward all traffic coming from load balancer to FlaskApiFlowerGroup
+      Conditions:
+        - Field: host-header
+          Values:
+            - '*.elb.amazonaws.com'
+      Actions:
+        - TargetGroupArn: !Ref FlaskApiFlowerGroup
+          Type: forward
+
   # ---------------------- Services & Tasks-------------------------------
 
-  FlaskApiService:
+  FlaskApiWebService:
     Type: AWS::ECS::Service
     Properties:
       Cluster: !Ref TargetCluster
       DesiredCount: 1
-      TaskDefinition: !Ref FlaskApiTask
+      TaskDefinition: !Ref FlaskApiWeb
       LaunchType: EC2
+      ServiceName: nginx-flaskapi-svc
+      # DO NOT DEFINE ROLE HERE
+      # ECS service-linked role is used by default in case of multiple targets
+      # Role:
       LoadBalancers:
         - ContainerName: nginx-flaskapi
           ContainerPort: 5000
           TargetGroupArn: !Ref FlaskApiWebGroup
+        - ContainerName: flower-flaskapi
+          ContainerPort: 5555
+          TargetGroupArn: !Ref FlaskApiFlowerGroup
 
-  # ---------------------- Nginx-Flask-Redis------------------------------------
+  FlaskApiWorkerService:
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster: !Ref TargetCluster
+      DesiredCount: 1
+      TaskDefinition: !Ref FlaskApiWorker
+      LaunchType: EC2
+      ServiceName: worker-flaskapi-svc
 
-  FlaskApiTask:
+  # ---------------------- Nginx-Flask-Flower------------------------------
+
+  FlaskApiWeb:
     Type: AWS::ECS::TaskDefinition
     Properties:
       Family: !Sub ${ProjectNamePrefix}-api
@@ -98,6 +160,8 @@ Resources:
           Image: !Sub ${EcrRepoName}/nginx-flaskapi
           # Soft limit, which can be escaped
           MemoryReservation: 256
+          DnsSearchDomains:
+            - internal
           Environment:
             - Name: 'FLASK_APP'
               Value: 'flaskapi/api.py'
@@ -106,53 +170,93 @@ Resources:
             - Name: 'C_FORCE_ROOT'
               Value: 'true'
             - Name: 'REDIS_URI'
-              Value: 'redis://super_secret@redis-flaskapi:6379/0'
+              Value: 'redis://:super_secret@redis-flaskapi-svc.internal:6379/0'
+            - Name: 'CELERY_BROKER_URL'
+              Value: 'redis://:super_secret@redis-flaskapi-svc.internal:6379/0'
+            - Name: 'CELERY_RESULT_BACKEND'
+              Value: 'redis://:super_secret@redis-flaskapi-svc.internal:6379/0'
           # TODO: Create shared volume with celery worker
           # MountPoints:
           #   - SourceVolume: S3Fuse-RexRay
-          #     ConteinerPath: /app/data
+          #     ContainerPath: /app/data
           PortMappings:
             - ContainerPort: 5000
               HostPort: 0
-          DependsOn:
-            - ContainerName: redis-flaskapi
-              Condition: 'START'
           LogConfiguration:
             LogDriver: awslogs
             Options:
               awslogs-region: !Ref AWS::Region
-              awslogs-group: !Ref FlaskApiLogGroup
+              awslogs-group: !Ref FlaskApiLogGroupWeb
               awslogs-stream-prefix: !Sub ${ProjectNamePrefix}-nginx
-        - Name: redis-flaskapi
-          Image: !Sub ${EcrRepoName}/redis:5.0-alpine
+        - Name: flower-flaskapi
+          Image: !Sub ${EcrRepoName}/celery-flaskapi
           MemoryReservation: 256
-          Environment:
-            - Name: 'REDIS_PASSWD'
-              Value: 'super_secret'
-          MountPoints:
-            - ContainerPath: '/data'
-              ReadOnly: false
-              SourceVolume: !Sub ${ProjectNamePrefix}-redis-data
+          DnsSearchDomains:
+            - internal
           PortMappings:
-            - ContainerPort: 6379
-              HostPort: 6379
+            - ContainerPort: 5555
+              HostPort: 0
           EntryPoint:
-            - 'redis-server'
-          # TODO: Get REDIS_PASSWD from secrets
+            - 'celery'
           Command:
-            - '--requirepass'
-            - 'super_secret'
+            - 'flower'
+            - '-A'
+            - 'tasks'
+            - '--port=5555'
+            - '--broker=redis://:super_secret@redis-flaskapi-svc.internal:6379/0'
           LogConfiguration:
             LogDriver: awslogs
             Options:
               awslogs-region: !Ref AWS::Region
-              awslogs-group: !Ref FlaskApiLogGroup
-              awslogs-stream-prefix: !Sub ${ProjectNamePrefix}-redis
-      Volumes:
-        - Name: !Sub ${ProjectNamePrefix}-redis-data
+              awslogs-group: !Ref FlaskApiLogGroupWeb
+              awslogs-stream-prefix: !Sub ${ProjectNamePrefix}-flower
       NetworkMode: 'bridge'
       ExecutionRoleArn: !Ref DefaultServiceExecutionRole
 
+  # ----------------------- Celery-Worker--------------------------------
+
+  FlaskApiWorker:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub ${ProjectNamePrefix}-worker
+      RequiresCompatibilities:
+        - 'EC2'
+      # Memory: '512'
+      # Minimum guaranteed compute
+      Cpu: '512'
+      ContainerDefinitions:
+        - Name: worker-flaskapi
+          Image: !Sub ${EcrRepoName}/celery-flaskapi
+          # Soft limit, which can be escaped
+          MemoryReservation: 256
+          DnsSearchDomains:
+            - internal
+          Environment:
+            - Name: 'CELERY_BROKER_URL'
+              Value: 'redis://:super_secret@redis-flaskapi-svc.internal:6379/0'
+            - Name: 'CELERY_RESULT_BACKEND'
+              Value: 'redis://:super_secret@redis-flaskapi-svc.internal:6379/0'
+            - Name: 'C_FORCE_ROOT'
+              Value: 'true'
+          # TODO: Create shared volume with celery worker
+          # MountPoints:
+          #   - SourceVolume: S3Fuse-RexRay
+          #     ContainerPath: /app/data
+          EntryPoint:
+            - 'celery'
+          Command:
+            - '-A'
+            - 'tasks'
+            - 'worker'
+            - '--loglevel=INFO'
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-region: !Ref AWS::Region
+              awslogs-group: !Ref FlaskApiLogGroupWeb
+              awslogs-stream-prefix: !Sub ${ProjectNamePrefix}-worker
+      NetworkMode: 'bridge'
+      ExecutionRoleArn: !Ref DefaultServiceExecutionRole
 
   # ---------------------- Service Roles----------------------------------
 
@@ -162,7 +266,7 @@ Resources:
     Type: AWS::IAM::Role
     Properties:
       Path: /
-      RoleName: !Sub ${ProjectNamePrefix}-${AWS::Region}-default-service-role
+      RoleName: !Sub ${ProjectNamePrefix}-${AWS::Region}-web-service-role
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -206,7 +310,7 @@ Resources:
 
   # ---------------------- Logs-------------------------------------------
 
-  FlaskApiLogGroup:
+  FlaskApiLogGroupWeb:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub /ecs/${ProjectNamePrefix}

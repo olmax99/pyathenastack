@@ -100,10 +100,22 @@ Resources:
 
   # ------------------ FlaskApi Services-------------------------------------
 
-  FlaskApiServices:
+  FlaskApiServicesRedis:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: https://s3.eu-central-1.amazonaws.com/flaskapi-cloudformation-eu-central-1/staging/cloudformation.flaskapi.services.yml
+      TemplateURL: https://s3.eu-central-1.amazonaws.com/flaskapi-cloudformation-eu-central-1/staging/cloudformation.flaskapi.redis.yml
+      Parameters:
+        ProjectNamePrefix: !Ref AWS::StackName
+        FlaskApiVpcId: !GetAtt FlaskApiVpc.Outputs.FlaskApiVpcOut
+        TargetCluster: !GetAtt FlaskApiEcsCluster.Outputs.FlaskApiEcsClusterOut
+        EcrRepoName: !Ref EcrRepoPrefix
+
+  # ------------------ FlaskApi Services-------------------------------------
+
+  FlaskApiServicesWeb:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://s3.eu-central-1.amazonaws.com/flaskapi-cloudformation-eu-central-1/staging/cloudformation.flaskapi.web.yml
       Parameters:
         ProjectNamePrefix: !Ref AWS::StackName
         FlaskApiVpcId: !GetAtt FlaskApiVpc.Outputs.FlaskApiVpcOut
