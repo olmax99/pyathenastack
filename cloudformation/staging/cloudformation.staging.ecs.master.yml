@@ -106,11 +106,11 @@ Resources:
       TemplateURL: https://s3.eu-central-1.amazonaws.com/flaskapi-cloudformation-eu-central-1/staging/cloudformation.flaskapi.redis.yml
       Parameters:
         ProjectNamePrefix: !Ref AWS::StackName
+        TargetVpc: !GetAtt FlaskApiVpc.Outputs.FlaskApiVpcOut
+        VpnBaseCidr: 172.16.248.0/21
         FlaskApiVpcId: !GetAtt FlaskApiVpc.Outputs.FlaskApiVpcOut
-        TargetCluster: !GetAtt FlaskApiEcsCluster.Outputs.FlaskApiEcsClusterOut
-        EcrRepoName: !Ref EcrRepoPrefix
-
-  # ------------------ FlaskApi Services-------------------------------------
+        TargetSubnets: !GetAtt FlaskApiVpc.Outputs.FlaskApiPrivateSubnetsOut
+        ClusterNodesType: cache.t2.micro
 
   FlaskApiServicesWeb:
     Type: AWS::CloudFormation::Stack
@@ -123,6 +123,7 @@ Resources:
         TargetAlbListener: !GetAtt FlaskApiAlb.Outputs.FlaskApiAlbListenerOut
         TargetAlbArn: !GetAtt FlaskApiAlb.Outputs.FlaskApiAlbNameOut
         EcrRepoName: !Ref EcrRepoPrefix
+        RedisHostName: !GetAtt FlaskApiServicesRedis.Outputs.RedisHostOut
 
   # ------------------- Templates Bucket----------------------------
 

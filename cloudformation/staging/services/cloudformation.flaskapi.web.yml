@@ -29,6 +29,10 @@ Parameters:
     Description: The full name of the newly created registry
     Type: String
 
+  RedisHostName:
+    Description: Address of the Redis master node
+    Type: String
+
 Resources:
 
   # ---------------------- Load Balancing Nginx---------------------------------
@@ -170,11 +174,11 @@ Resources:
             - Name: 'C_FORCE_ROOT'
               Value: 'true'
             - Name: 'REDIS_URI'
-              Value: 'redis://:super_secret@redis-flaskapi-svc.internal:6379/0'
+              Value: !Sub 'redis://:super-secret-123@${RedisHostName}:6379/0'
             - Name: 'CELERY_BROKER_URL'
-              Value: 'redis://:super_secret@redis-flaskapi-svc.internal:6379/0'
+              Value: !Sub 'redis://:super-secret-123@${RedisHostName}:6379/0'
             - Name: 'CELERY_RESULT_BACKEND'
-              Value: 'redis://:super_secret@redis-flaskapi-svc.internal:6379/0'
+              Value: !Sub 'redis://:super-secret-123@${RedisHostName}:6379/0'
           # TODO: Create shared volume with celery worker
           # MountPoints:
           #   - SourceVolume: S3Fuse-RexRay
@@ -203,7 +207,7 @@ Resources:
             - '-A'
             - 'tasks'
             - '--port=5555'
-            - '--broker=redis://:super_secret@redis-flaskapi-svc.internal:6379/0'
+            - !Sub '--broker=redis://:super-secret-123@${RedisHostName}:6379/0'
           LogConfiguration:
             LogDriver: awslogs
             Options:
@@ -233,9 +237,9 @@ Resources:
             - internal
           Environment:
             - Name: 'CELERY_BROKER_URL'
-              Value: 'redis://:super_secret@redis-flaskapi-svc.internal:6379/0'
+              Value: !Sub 'redis://:super-secret-123@${RedisHostName}:6379/0'
             - Name: 'CELERY_RESULT_BACKEND'
-              Value: 'redis://:super_secret@redis-flaskapi-svc.internal:6379/0'
+              Value: !Sub 'redis://:super-secret-123@${RedisHostName}:6379/0'
             - Name: 'C_FORCE_ROOT'
               Value: 'true'
           # TODO: Create shared volume with celery worker

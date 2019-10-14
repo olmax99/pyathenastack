@@ -1,0 +1,164 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: >
+  Redis
+
+Parameters:
+
+  ProjectNamePrefix:
+    Description: Used for ecs resources and consistent naming
+    Type: String
+
+  FlaskApiVpcId:
+    Description: Reference to the FlaskApi VPC
+    Type: String
+
+  TargetCluster:
+    Description: Target cluster for the tasks and services to run on
+    Type: String
+
+  EcrRepoName:
+    Description: The full name of the newly created registry
+    Type: String
+
+Resources:
+
+  # ---------------------- Service Discovery Redis------------------------
+
+  FlaskApiDnsNameSpace:
+    Type: AWS::ServiceDiscovery::PrivateDnsNamespace
+    Properties:
+      Name: internal
+      Vpc: !Ref FlaskApiVpcId
+
+  RedisDnsService:
+    Type: AWS::ServiceDiscovery::Service
+    Properties:
+      Description: Discovery Service for the Redis Services
+      DnsConfig:
+        DnsRecords:
+          - TTL: 60
+            Type: SRV
+      HealthCheckCustomConfig:
+        FailureThreshold: 1
+      Name: redis-flaskapi-svc
+      NamespaceId: !Ref FlaskApiDnsNameSpace
+
+  # ---------------------- Service ---------------------------------------
+
+  FlaskApiRedisService:
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster: !Ref TargetCluster
+      DesiredCount: 1
+      TaskDefinition: !Ref FlaskApiRedis
+      LaunchType: EC2
+      ServiceName: redis-flaskapi-svc
+      ServiceRegistries:
+        - RegistryArn: !GetAtt RedisDnsService.Arn
+          ContainerName: redis-flaskapi
+          ContainerPort: 6379
+
+  # ----------------------- Redis----------------------------------------
+
+  FlaskApiRedis:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub ${ProjectNamePrefix}-redis
+      RequiresCompatibilities:
+        - 'EC2'
+      # Memory: '512'
+      # Minimum guaranteed compute
+      Cpu: '512'
+      ContainerDefinitions:
+        - Name: redis-flaskapi
+          Image: !Sub ${EcrRepoName}/redis:5.0-alpine
+          MemoryReservation: 256
+          Environment:
+            - Name: 'REDIS_PASSWD'
+              Value: 'super_secret'
+          MountPoints:
+            - ContainerPath: '/data'
+              ReadOnly: false
+              SourceVolume: !Sub ${ProjectNamePrefix}-redis-data
+          PortMappings:
+            - ContainerPort: 6379
+              HostPort: 6379
+          EntryPoint:
+            - 'redis-server'
+          # TODO: Get REDIS_PASSWD from secrets
+          Command:
+            - '--requirepass'
+            - 'super_secret'
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-region: !Ref AWS::Region
+              awslogs-group: !Ref FlaskApiLogGroupRedis
+              awslogs-stream-prefix: !Sub ${ProjectNamePrefix}-redis
+      Volumes:
+        - Name: !Sub ${ProjectNamePrefix}-redis-data
+      NetworkMode: 'bridge'
+      ExecutionRoleArn: !Ref RedisServiceExecutionRole
+
+  # ---------------------- Service Roles----------------------------------
+
+  # TODO: Restrict s3 + verify if necessary (EC2 Launch Type containers take the same
+  # permissions as the cluster instances
+  RedisServiceExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      RoleName: !Sub ${ProjectNamePrefix}-${AWS::Region}-redis-service-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          Action:
+            - 'sts:AssumeRole'
+          Effect: "Allow"
+          Principal:
+            Service: ecs-tasks.amazonaws.com
+      Policies:
+        - PolicyName: !Sub ecs-service-${AWS::StackName}
+          PolicyDocument:
+            {
+              "Version": "2012-10-17",
+              "Statement": [{
+                              "Effect": "Allow",
+                              "Action": [
+                                "ec2:AuthorizeSecurityGroupIngress",
+                                "ec2:Describe*",
+                                "elasticloadbalancing:DeregisterInstancesFromLoadBalancer",
+                                "elasticloadbalancing:Describe*",
+                                "elasticloadbalancing:RegisterInstancesWithLoadBalancer",
+                                "elasticloadbalancing:DeregisterTargets",
+                                "elasticloadbalancing:DescribeTargetGroups",
+                                "elasticloadbalancing:DescribeTargetHealth",
+                                "elasticloadbalancing:RegisterTargets"
+                              ],
+                              "Resource": "*"
+                            }]
+            }
+
+        - PolicyName: !Sub ecs-service-${ProjectNamePrefix}
+          PolicyDocument:
+            Statement:
+              Effect: "Allow"
+              Action:
+                - s3:*
+              Resource: "*"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+
+  # ---------------------- Logs-------------------------------------------
+
+  FlaskApiLogGroupRedis:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /ecs/${ProjectNamePrefix}-redis
+
+Outputs:
+
+  RedisHostName:
+    Description: Redis Host Name
+    Value: !GetAtt RedisDnsService.Arn
