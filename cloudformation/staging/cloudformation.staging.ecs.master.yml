@@ -111,6 +111,7 @@ Resources:
         FlaskApiVpcId: !GetAtt FlaskApiVpc.Outputs.FlaskApiVpcOut
         TargetSubnets: !GetAtt FlaskApiVpc.Outputs.FlaskApiPrivateSubnetsOut
         ClusterNodesType: cache.t2.micro
+        RedisSg: !GetAtt FlaskApiSG.Outputs.FlaskApiRedisSgName
 
   FlaskApiServicesWeb:
     Type: AWS::CloudFormation::Stack
@@ -120,10 +121,12 @@ Resources:
         ProjectNamePrefix: !Ref AWS::StackName
         FlaskApiVpcId: !GetAtt FlaskApiVpc.Outputs.FlaskApiVpcOut
         TargetCluster: !GetAtt FlaskApiEcsCluster.Outputs.FlaskApiEcsClusterOut
+        TargetSubnets: !GetAtt FlaskApiVpc.Outputs.FlaskApiPrivateSubnetsOut
         TargetAlbListener: !GetAtt FlaskApiAlb.Outputs.FlaskApiAlbListenerOut
         TargetAlbArn: !GetAtt FlaskApiAlb.Outputs.FlaskApiAlbNameOut
         EcrRepoName: !Ref EcrRepoPrefix
         RedisHostName: !GetAtt FlaskApiServicesRedis.Outputs.RedisHostOut
+
 
   # ------------------- Templates Bucket----------------------------
 

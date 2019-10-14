@@ -41,11 +41,11 @@ services:
     networks:
       - default
   flower.flaskapi:
-    build: celery_queue
+    image: mher/flower
     ports:
       - "5555:5555"
     entrypoint: flower
-    command: ["-A", "tasks", "--port=5555", "--broker=${REDIS_URI}"]
+    command: ["--port=5555", "--broker=${REDIS_URI}"]
     depends_on:
       - redis.flaskapi
   redis.flaskapi:

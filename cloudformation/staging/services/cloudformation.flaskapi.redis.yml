@@ -29,18 +29,11 @@ Parameters:
     Description: Allocate necessarry compute
     Type: String
 
-Resources:
-
   RedisSg:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: Security Group for ingress to Redis replica sets
-      VpcId: !Ref TargetVpc
-      SecurityGroupIngress:
-        - CidrIp: !Ref VpnBaseCidr
-          FromPort: 6379
-          ToPort: 6379
-          IpProtocol: 'tcp'
+    Description: Join Redis SG network
+    Type: String
+
+Resources:
 
   RedisSubnetGroup:
     Type: AWS::ElastiCache::SubnetGroup
@@ -53,9 +46,9 @@ Resources:
     Type: AWS::ElastiCache::ReplicationGroup
     Properties:
       AtRestEncryptionEnabled: true
-      TransitEncryptionEnabled: true
+      # TransitEncryptionEnabled: true
       # TODO: Get password from secrets, min 16 chars
-      AuthToken: 'super-secret-123'
+      # AuthToken: 'super-secret-123'
       AutomaticFailoverEnabled: false
       CacheNodeType: !Ref ClusterNodesType
       CacheSubnetGroupName: !Ref RedisSubnetGroup

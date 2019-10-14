@@ -21,7 +21,7 @@ Parameters:
     Description: S3 to store OpenVPN Certs
     Type: String
     AllowedPattern: "^[a-zA-Z0-9]+[a-zA-Z0-9-]+[a-zA-Z0-9]+$"
-    Default: flaskapi-staging-openvpn-certs-eu-central-1
+    Default: flaskapi-staging-openvpn-new-certs-eu-central-1
 
   TargetVpc:
     Description: Vpc in which following VPN will be deployed to
@@ -137,7 +137,7 @@ Resources:
       IamInstanceProfile: !Ref EC2OpenVPNattachPolicyToRole
       Tags:
         - Key: Name
-          Value: flaskapi-openVpn-ec2
+          Value: flaskapi-openvpn-ec2
       UserData:
           # cfn-init runs a configset on the ec2 after having retrieved all necessary template parameters
           # cfn-signal just signals the Cloudformation build to proceed or finish

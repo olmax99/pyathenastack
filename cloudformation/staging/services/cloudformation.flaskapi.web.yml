@@ -17,6 +17,10 @@ Parameters:
     Description: Target cluster for the tasks and services to run on
     Type: String
 
+  TargetSubnets:
+    Description: Network config for services
+    Type: List<AWS::EC2::Subnet::Id>
+
   TargetAlbArn:
     Description: Target for custom listener rules on top of the existing dummy rule
     Type: String
@@ -53,7 +57,7 @@ Resources:
       HealthCheckProtocol: HTTP
       HealthCheckTimeoutSeconds: 5
       UnhealthyThresholdCount: 2
-      TargetType: instance
+      TargetType: ip
       TargetGroupAttributes:
         - Key: deregistration_delay.timeout_seconds
           Value: '30'
@@ -99,7 +103,7 @@ Resources:
       HealthCheckProtocol: HTTP
       HealthCheckTimeoutSeconds: 5
       UnhealthyThresholdCount: 2
-      TargetType: instance
+      TargetType: ip
       TargetGroupAttributes:
         - Key: deregistration_delay.timeout_seconds
           Value: '30'
@@ -138,6 +142,10 @@ Resources:
         - ContainerName: flower-flaskapi
           ContainerPort: 5555
           TargetGroupArn: !Ref FlaskApiFlowerGroup
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: 'DISABLED'
+          Subnets: !Ref TargetSubnets
 
   FlaskApiWorkerService:
     Type: AWS::ECS::Service
@@ -147,6 +155,10 @@ Resources:
       TaskDefinition: !Ref FlaskApiWorker
       LaunchType: EC2
       ServiceName: worker-flaskapi-svc
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: 'DISABLED'
+          Subnets: !Ref TargetSubnets
 
   # ---------------------- Nginx-Flask-Flower------------------------------
 
@@ -164,8 +176,6 @@ Resources:
           Image: !Sub ${EcrRepoName}/nginx-flaskapi
           # Soft limit, which can be escaped
           MemoryReservation: 256
-          DnsSearchDomains:
-            - internal
           Environment:
             - Name: 'FLASK_APP'
               Value: 'flaskapi/api.py'
@@ -174,18 +184,18 @@ Resources:
             - Name: 'C_FORCE_ROOT'
               Value: 'true'
             - Name: 'REDIS_URI'
-              Value: !Sub 'redis://:super-secret-123@${RedisHostName}:6379/0'
+              Value: !Sub 'redis://:@${RedisHostName}:6379/0'
             - Name: 'CELERY_BROKER_URL'
-              Value: !Sub 'redis://:super-secret-123@${RedisHostName}:6379/0'
+              Value: !Sub 'redis://:@${RedisHostName}:6379/0'
             - Name: 'CELERY_RESULT_BACKEND'
-              Value: !Sub 'redis://:super-secret-123@${RedisHostName}:6379/0'
+              Value: !Sub 'redis://:@${RedisHostName}:6379/0'
           # TODO: Create shared volume with celery worker
           # MountPoints:
           #   - SourceVolume: S3Fuse-RexRay
           #     ContainerPath: /app/data
           PortMappings:
             - ContainerPort: 5000
-              HostPort: 0
+              HostPort: 5000
           LogConfiguration:
             LogDriver: awslogs
             Options:
@@ -193,28 +203,28 @@ Resources:
               awslogs-group: !Ref FlaskApiLogGroupWeb
               awslogs-stream-prefix: !Sub ${ProjectNamePrefix}-nginx
         - Name: flower-flaskapi
-          Image: !Sub ${EcrRepoName}/celery-flaskapi
+          Image: !Sub ${EcrRepoName}/flower-flaskapi
           MemoryReservation: 256
-          DnsSearchDomains:
-            - internal
+          Environment:
+            - Name: 'CELERY_BROKER_URL'
+              Value: !Sub 'redis://:@${RedisHostName}:6379/0'
+            - Name: 'FLOWER_PORT'
+              Value: '5555'
           PortMappings:
             - ContainerPort: 5555
-              HostPort: 0
+              HostPort: 5555
           EntryPoint:
-            - 'celery'
-          Command:
             - 'flower'
-            - '-A'
-            - 'tasks'
+          Command:
             - '--port=5555'
-            - !Sub '--broker=redis://:super-secret-123@${RedisHostName}:6379/0'
+            - !Sub '--broker=redis://:@${RedisHostName}:6379/0'
           LogConfiguration:
             LogDriver: awslogs
             Options:
               awslogs-region: !Ref AWS::Region
               awslogs-group: !Ref FlaskApiLogGroupWeb
               awslogs-stream-prefix: !Sub ${ProjectNamePrefix}-flower
-      NetworkMode: 'bridge'
+      NetworkMode: 'awsvpc'
       ExecutionRoleArn: !Ref DefaultServiceExecutionRole
 
   # ----------------------- Celery-Worker--------------------------------
@@ -233,13 +243,11 @@ Resources:
           Image: !Sub ${EcrRepoName}/celery-flaskapi
           # Soft limit, which can be escaped
           MemoryReservation: 256
-          DnsSearchDomains:
-            - internal
           Environment:
             - Name: 'CELERY_BROKER_URL'
-              Value: !Sub 'redis://:super-secret-123@${RedisHostName}:6379/0'
+              Value: !Sub 'redis://:@${RedisHostName}:6379/0'
             - Name: 'CELERY_RESULT_BACKEND'
-              Value: !Sub 'redis://:super-secret-123@${RedisHostName}:6379/0'
+              Value: !Sub 'redis://:@${RedisHostName}:6379/0'
             - Name: 'C_FORCE_ROOT'
               Value: 'true'
           # TODO: Create shared volume with celery worker
@@ -252,6 +260,7 @@ Resources:
             - '-A'
             - 'tasks'
             - 'worker'
+            - '--app=worker.app'
             - '--loglevel=INFO'
           LogConfiguration:
             LogDriver: awslogs
@@ -259,7 +268,7 @@ Resources:
               awslogs-region: !Ref AWS::Region
               awslogs-group: !Ref FlaskApiLogGroupWeb
               awslogs-stream-prefix: !Sub ${ProjectNamePrefix}-worker
-      NetworkMode: 'bridge'
+      NetworkMode: 'awsvpc'
       ExecutionRoleArn: !Ref DefaultServiceExecutionRole
 
   # ---------------------- Service Roles----------------------------------

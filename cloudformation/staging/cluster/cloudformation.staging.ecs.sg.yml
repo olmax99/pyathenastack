@@ -26,16 +26,31 @@ Resources:
       GroupDescription: SG for all cluster resources including tasks, services, and EC2 nodes
       VpcId: !Ref TargetVpc
       SecurityGroupIngress:
-        # TODO: Are all instances open to the world? CHANGE!!
         # -1 stands for ALL
         - IpProtocol: -1
           SourceSecurityGroupId: !Ref FlaskApiAlbSg
+        - IpProtocol: -1
+          SourceSecurityGroupId: !Ref FlaskApiRedisSg
         # This is for local access through vpn
         - IpProtocol: tcp
           FromPort: '22'
           ToPort: '22'
           CidrIp: !Ref VpnBaseCidr
           Description: VPN local network ingress for maintenance
+        # Overlay networks requirements
+        # https://docs.docker.com/network/overlay/
+        - IpProtocol: tcp
+          FromPort: '2377'
+          ToPort: '2377'
+          CidrIp: !Ref VpnBaseCidr
+        - IpProtocol: -1
+          FromPort: '7946'
+          ToPort: '7946'
+          CidrIp: !Ref VpnBaseCidr
+        - IpProtocol: udp
+          FromPort: '4789'
+          ToPort: '4789'
+          CidrIp: !Ref VpnBaseCidr
       Tags:
         - Key: Name
           Value: !Sub ${ProjectNamePrefix}-ecs-hosts-sg
@@ -53,6 +68,17 @@ Resources:
         - Key: Name
           Value: !Sub ${ProjectNamePrefix}-alb-sg
 
+  FlaskApiRedisSg:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security Group for ingress to Redis replica sets
+      VpcId: !Ref TargetVpc
+      SecurityGroupIngress:
+        - CidrIp: !Ref VpnBaseCidr
+          FromPort: 6379
+          ToPort: 6379
+          IpProtocol: 'tcp'
+
 Outputs:
 
     FlaskApiEcsHostsSgName:
@@ -62,3 +88,7 @@ Outputs:
     FlaskApiAlbSgName:
       Description: Carry over the ALB SG reference
       Value: !Ref FlaskApiAlbSg
+
+    FlaskApiRedisSgName:
+      Description: Include Redis SG into ECS resources
+      Value: !Ref FlaskApiRedisSg
