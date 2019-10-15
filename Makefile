@@ -33,7 +33,7 @@ templates:
 	aws s3 cp --recursive cloudformation/staging/services s3://${CFN_TEMPLATES_BUCKET}/staging/
 
 cluster:
-	aws cloudformation --region ${AWS_REGION} update-stack --stack-name ${PROJECT_NAME} \
+	aws cloudformation --region ${AWS_REGION} create-stack --stack-name ${PROJECT_NAME} \
 	--template-body file://cloudformation/staging/cloudformation.staging.ecs.master.yml \
 	--parameters ParameterKey="EcrRepoPrefix",ParameterValue="${ECR_REPO_PREFIX}" \
 	ParameterKey="VpnAccessKey",ParameterValue="${VPN_KEY_NAME}" \
