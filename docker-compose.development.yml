@@ -11,7 +11,7 @@ services:
       # uncomment for ignoring s3fs plugin
       # - $PWD/webflaskapi/data:/app/data
     ports:
-      - "80:5000"
+      - "5000:5000"
     environment:
       - FLASK_APP=flaskapi/api.py
       - FLASK_DEBUG=1

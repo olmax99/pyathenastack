@@ -25,10 +25,6 @@ Parameters:
     Description: Target for custom listener rules on top of the existing dummy rule
     Type: String
 
-  TargetAlbListener:
-    Description: Default listener on port 80 HTTP from ALB definition
-    Type: String
-
   EcrRepoName:
     Description: The full name of the newly created registry
     Type: String
@@ -41,13 +37,22 @@ Resources:
 
   # ---------------------- Load Balancing Nginx---------------------------------
 
+  CustomNginxListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref TargetAlbArn
+      Port: 5000
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref FlaskApiWebGroup
+
   FlaskApiWebGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
       Name: !Sub ${ProjectNamePrefix}-web-tg
       VpcId: !Ref FlaskApiVpcId
-      # This port is overridden by dynamic port mapping
-      Port: 80
+      Port: 5000
       Protocol: HTTP
       # ---------- Health Check Settings------------
       Matcher:
@@ -57,15 +62,15 @@ Resources:
       HealthCheckProtocol: HTTP
       HealthCheckTimeoutSeconds: 5
       UnhealthyThresholdCount: 2
-      TargetType: ip
+      TargetType: instance
       TargetGroupAttributes:
         - Key: deregistration_delay.timeout_seconds
-          Value: '30'
+          Value: '20'
 
   WebListenerRule:
     Type: AWS::ElasticLoadBalancingV2::ListenerRule
     Properties:
-      ListenerArn: !Ref TargetAlbListener
+      ListenerArn: !Ref CustomNginxListener
       Priority: 1
       # Forward all traffic coming from load balancer to FlaskApiWebGroup
       Conditions:
@@ -103,10 +108,10 @@ Resources:
       HealthCheckProtocol: HTTP
       HealthCheckTimeoutSeconds: 5
       UnhealthyThresholdCount: 2
-      TargetType: ip
+      TargetType: instance
       TargetGroupAttributes:
         - Key: deregistration_delay.timeout_seconds
-          Value: '30'
+          Value: '20'
 
   FlowerListenerRule:
     Type: AWS::ElasticLoadBalancingV2::ListenerRule
@@ -142,10 +147,10 @@ Resources:
         - ContainerName: flower-flaskapi
           ContainerPort: 5555
           TargetGroupArn: !Ref FlaskApiFlowerGroup
-      NetworkConfiguration:
-        AwsvpcConfiguration:
-          AssignPublicIp: 'DISABLED'
-          Subnets: !Ref TargetSubnets
+#      NetworkConfiguration:
+#        AwsvpcConfiguration:
+#          AssignPublicIp: 'DISABLED'
+#          Subnets: !Ref TargetSubnets
 
   FlaskApiWorkerService:
     Type: AWS::ECS::Service
@@ -176,6 +181,7 @@ Resources:
           Image: !Sub ${EcrRepoName}/nginx-flaskapi
           # Soft limit, which can be escaped
           MemoryReservation: 256
+          Essential: true
           Environment:
             - Name: 'FLASK_APP'
               Value: 'flaskapi/api.py'
@@ -195,7 +201,9 @@ Resources:
           #     ContainerPath: /app/data
           PortMappings:
             - ContainerPort: 5000
-              HostPort: 5000
+              # Protocol: http
+              # In 'awsvpc' leave for auto-assign HostPort
+              HostPort: 0
           LogConfiguration:
             LogDriver: awslogs
             Options:
@@ -205,6 +213,7 @@ Resources:
         - Name: flower-flaskapi
           Image: !Sub ${EcrRepoName}/flower-flaskapi
           MemoryReservation: 256
+          Essential: false
           Environment:
             - Name: 'CELERY_BROKER_URL'
               Value: !Sub 'redis://:@${RedisHostName}:6379/0'
@@ -212,7 +221,7 @@ Resources:
               Value: '5555'
           PortMappings:
             - ContainerPort: 5555
-              HostPort: 5555
+              HostPort: 0
           EntryPoint:
             - 'flower'
           Command:
@@ -224,7 +233,7 @@ Resources:
               awslogs-region: !Ref AWS::Region
               awslogs-group: !Ref FlaskApiLogGroupWeb
               awslogs-stream-prefix: !Sub ${ProjectNamePrefix}-flower
-      NetworkMode: 'awsvpc'
+      NetworkMode: 'bridge'
       ExecutionRoleArn: !Ref DefaultServiceExecutionRole
 
   # ----------------------- Celery-Worker--------------------------------
@@ -260,7 +269,6 @@ Resources:
             - '-A'
             - 'tasks'
             - 'worker'
-            - '--app=worker.app'
             - '--loglevel=INFO'
           LogConfiguration:
             LogDriver: awslogs

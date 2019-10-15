@@ -35,7 +35,7 @@ Resources:
         - Key: Name
           Value: !Sub ${ProjectNamePrefix}-alb
 
-  AlbListener:
+  DefaultAlbListener:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
       LoadBalancerArn: !Ref FlaskApiAlb
@@ -63,7 +63,7 @@ Outputs:
 
   FlaskApiAlbListenerOut:
     Description: Reference to the listener used by custom rules in services
-    Value: !Ref AlbListener
+    Value: !Ref DefaultAlbListener
 
   FlaskApiAlbUrl:
     Description: URL of the FlaskApi Application Load Balancer

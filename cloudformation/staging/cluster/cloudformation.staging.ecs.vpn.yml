@@ -21,7 +21,7 @@ Parameters:
     Description: S3 to store OpenVPN Certs
     Type: String
     AllowedPattern: "^[a-zA-Z0-9]+[a-zA-Z0-9-]+[a-zA-Z0-9]+$"
-    Default: flaskapi-staging-openvpn-new-certs-eu-central-1
+    Default: flaskapi-staging-openvpn-certs-eu-central-1
 
   TargetVpc:
     Description: Vpc in which following VPN will be deployed to

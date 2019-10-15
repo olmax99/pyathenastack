@@ -308,8 +308,9 @@ $ make cluster
 # Activate ovpn connection throught network settings
 $ make vpn
 
-# Create ssh remote forwarding tunnel
-$ ssh -R 8080:<internal-flaskapi-staging-alb-endpoint>:80 -i <bastion_key> ec2-user@<private_bastion_ip> &
+# Create ssh remote forwarding tunnels and ensure that vpn conn is activated
+$ ssh -R 5000:<internal-flaskapi-staging-alb-endpoint>:5000 -i <bastion_key> ec2-user@<private_bastion_ip> &
+$ ssh -R 5555:<internal-flaskapi-staging-alb-endpoint>:5555 -i <bastion_key> ec2-user@<private_bastion_ip> &
 
 ```
 
