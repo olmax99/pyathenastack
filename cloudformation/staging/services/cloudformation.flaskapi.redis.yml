@@ -1,0 +1,72 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: <
+  FlaskApi Redis Cluster
+
+Parameters:
+
+  ProjectNamePrefix:
+    Description: Environment name
+    Type: String
+
+  TargetVpc:
+    Description: Vpc in which following sg will be deployed to
+    Type: String
+
+  VpnBaseCidr:
+    Description: Ingress for Vpc Cluster resources
+    Type: String
+
+  FlaskApiVpcId:
+    Description: Target VPC
+    Type: String
+
+  TargetSubnets:
+    Description: Select a list of target subnets for ALB deployment
+    Type: List<AWS::EC2::Subnet::Id>
+
+  ClusterNodesType:
+    Description: Allocate necessarry compute
+    Type: String
+
+  RedisSg:
+    Description: Join Redis SG network
+    Type: String
+
+Resources:
+
+  RedisSubnetGroup:
+    Type: AWS::ElastiCache::SubnetGroup
+    Properties:
+      Description: !Sub ${ProjectNamePrefix}
+      SubnetIds: !Ref TargetSubnets
+
+  # UPGRADE CLUSTER FOR HA
+  RedisReplicas:
+    Type: AWS::ElastiCache::ReplicationGroup
+    Properties:
+      AtRestEncryptionEnabled: true
+      # TransitEncryptionEnabled: true
+      # TODO: Get password from secrets, min 16 chars
+      # AuthToken: 'super-secret-123'
+      AutomaticFailoverEnabled: false
+      CacheNodeType: !Ref ClusterNodesType
+      CacheSubnetGroupName: !Ref RedisSubnetGroup
+      Engine: redis
+      EngineVersion: '5.0.0'
+      # Defaults to 1 if Failover is false
+      NumCacheClusters: 1
+      Port: 6379
+      PreferredMaintenanceWindow: 'sun:22:00-sun:23:30'
+      ReplicationGroupDescription: !Sub ${ProjectNamePrefix}-redis-replicas
+      SecurityGroupIds:
+        - !Ref RedisSg
+      # Number of days
+      SnapshotRetentionLimit: 7
+      SnapshotWindow: '05:00-09:00'
+
+Outputs:
+
+  RedisHostOut:
+    Description: Host address of the Redis cluster
+    Value: !GetAtt 'RedisReplicas.PrimaryEndPoint.Address'

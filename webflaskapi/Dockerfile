@@ -156,18 +156,23 @@ ENV NGINX_WORKER_PROCESSES auto
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-ENTRYPOINT ["/entrypoint.sh"]
-
-# -------------------------------------------------------------------------------
-#   FLASK configuration
-# -------------------------------------------------------------------------------
-
 # By default, Nginx listens on port 80.
 # To modify this, change LISTEN_PORT environment variable.
 # (in a Dockerfile or with an option for `docker run`)
 EXPOSE 5000
 ENV LISTEN_PORT 5000
 
+ENTRYPOINT ["/entrypoint.sh"]
+
+# -------------------------------------------------------------------------------
+#   FLASK configuration
+# -------------------------------------------------------------------------------
+
+# UNCOMMENT FOR BUILDING PRODUCTION IMAGE
+# COPY requirements.txt /app/requirements.txt
+# RUN pip install -r requirements.txt
+
+# UNCOMMENT FOR DEVELOPMENT
 RUN pip install pipenv
 RUN pipenv install --system --deploy --ignore-pipfile
 

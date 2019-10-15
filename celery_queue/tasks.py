@@ -15,13 +15,13 @@ from sbapi_permits.permits_object import PermitsAthena
 CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://:test456@redis.testing:6379/0'),
 CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'redis://:test456@redis.testing:6379/0')
 
-celery = Celery('tasks', broker=CELERY_BROKER_URL, backend=CELERY_RESULT_BACKEND)
+app = Celery('tasks', broker=CELERY_BROKER_URL, backend=CELERY_RESULT_BACKEND)
 
 logger = get_task_logger(__name__)
 
 
 # TODO: Add schema verification for input variables
-@celery.task(name='tasks.getsbapermits')
+@app.task(name='tasks.getsbapermits')
 def get_sba_permits(job_id: str, long_job_id: str, dt_called):
     sync_athena = PermitsAthena(current_uuid=job_id, partitiontime=dt_called)
 
@@ -52,7 +52,7 @@ def get_sba_permits(job_id: str, long_job_id: str, dt_called):
     return "FINISHED."
 
 
-@celery.task(name='tasks.verifysourcefileexists')
+@app.task(name='tasks.verifysourcefileexists')
 def verify_source_file_exists(job_id: str) -> Optional[dict]:
     fac = utilities.HookFactory()
     s3_hook = fac.create(type_hook='s3').create_client(custom_region='us-east-1')
@@ -82,7 +82,7 @@ def verify_source_file_exists(job_id: str) -> Optional[dict]:
             return object_summary
 
 
-@celery.task(name='tasks.verifytargetstackexists')
+@app.task(name='tasks.verifytargetstackexists')
 def verify_target_stack_exists(stack_name: str) -> Optional[dict]:
     fac = utilities.HookFactory()
     cfn_hook = fac.create(type_hook='cfn').create_client(custom_region='eu-central-1')
@@ -114,7 +114,7 @@ def verify_target_stack_exists(stack_name: str) -> Optional[dict]:
             return cfn_summary
 
 
-@celery.task(name='tasks.updatepartition')
+@app.task(name='tasks.updatepartition')
 def update_partition(chain_parent_in: list, job_id: str, partition_name: str) -> Optional[dict]:
     """
     NOTE: This task is part of a chain(). At very first, it is evaluated if the previous tasks contain any errors.
@@ -197,7 +197,7 @@ def update_partition(chain_parent_in: list, job_id: str, partition_name: str) ->
             return table_info
 
 
-@celery.task(name='tasks.copysrcfiletotarget')
+@app.task(name='tasks.copysrcfiletotarget')
 def copy_src_file_to_target(chain_parent_in: dict, job_id: str, partition_name: str) -> Optional[dict]:
     fac = utilities.HookFactory()
     s3_hook = fac.create(type_hook='s3').create_client(custom_region='us-east-1')

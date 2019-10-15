@@ -12,6 +12,7 @@ with a light-weight DWH system utilizing AWS Athena.
 
 - Secure data in AWS Athena [https://docs.aws.amazon.com/athena/latest/ug/security.html](https://docs.aws.amazon.com/athena/latest/ug/security.html)
 - Use RexRay with ECS [https://aws.amazon.com/blogs/compute/amazon-ecs-and-docker-volume-drivers-amazon-ebs/](https://aws.amazon.com/blogs/compute/amazon-ecs-and-docker-volume-drivers-amazon-ebs/)
+- Integrate JWT with with Flask + schema verfication with endpoints
 
 ## Prerequisites
 
@@ -32,7 +33,7 @@ naming of packages using `async`, which is now a keyword in Python.
 Temporarily downgraded to `3.6.9` until solved.
 
 
-## Quickstart
+## Quickstart Development
 
 ---
 
@@ -200,7 +201,7 @@ $ docker logs -f dockerflaskapi_worker.flaskapi_1
 $ aws cloudformation validate-template --template-body file://cloudformation.development.athena.yml
 
 $ aws cloudformation create-stack --stack-name flaskapi-dev-athena-01 \
-  --template-body file://cloudformation.development.athena.yml 
+  --template-body file://cloudformation.development.athena.yml
 
 ```
 
@@ -248,6 +249,90 @@ $ docker-compose -f docker-compose.testing.yml down
 
 ```
 
+## Quickstart Production
+
+### 1. Create Elastic Container Registry
+
+#### a. Get an ECR access token and create ECR repositories
+
+**NOTE:** There can be only one registry per AWS account
+
+```sh
+$ make ecr
+
+```
+
+#### b. Push images to ECR
+
+**NOTE:** The local images should exist after having build the project for development.
+
+```sh
+$ export ECR_REPO_PREFIX=<your ECR label>
+
+
+
+# Tag Images with the ECR URL prefix
+$ make tag
+
+# Push Images
+$ make push
+
+```
+
+### 1. Launch ECS Cluster
+
+#### a. Create deployment bucket and upload files
+
+See [Master template](https://github.com/olmax99/dockerflaskapi/blob/master/cloudformation.staging.ecs.master.yml) for 
+detailed Bucket specification. Other than that create the Bucket manually.
+
+From project directory
+```sh
+# OPTIONALLY
+$ aws cloudformation validate-template --template-body file://cloudformation/staging/cloudformation.staging.ecs.master.yml
+
+$ make templates
+
+```
+
+#### b. Launch master template
+
+```sh
+$ make cluster
+
+```
+
+#### c. Connect to FlaskApi
+
+```sh
+# Activate ovpn connection throught network settings
+$ make vpn
+
+# Create ssh remote forwarding tunnels and ensure that vpn conn is activated
+$ ssh -R 5000:<internal-flaskapi-staging-alb-endpoint>:5000 -i <bastion_key> ec2-user@<private_bastion_ip> &
+$ ssh -R 5555:<internal-flaskapi-staging-alb-endpoint>:5555 -i <bastion_key> ec2-user@<private_bastion_ip> &
+
+```
+
+In browser use: `http://<internal-flaskapi-staging-alb-endpoint>:80/`
+
+### FAQ ECS 
+
+1. What triggers a scale-up or scale-down of the cluster nodes, respectively? How can it be tested?
+
+  * The current autoscaling configuration simply attempts to reach the desired number of nodes. The 
+  desired cluster size is defined in `cloudformation.staging.ecs.master` with property `ClusterMinNodes`.
+  This means that in the current setup the cluster size is being kept at this size, and does not vary on
+  load or any other events.
+
+  Only an `Unhealthy` signal might lead to temporary changes in the cluster size. However, the autoscaling
+  will always attempt to get to the desired state.
+
+2. How does a scale-up or scale-down of task containers translates to an scale-up or scale-down of the cluster nodes?
+
+  * Currently, there are no interchangeable effects between the ecs cluster nodes and the task containers,
+  other than unhealthy nodes will be replaced by the autoscaling group.
+
 
 ## General Instructions
 
@@ -288,6 +373,19 @@ The flask docker is based on a project from *Sebastián Ramírez* [uwsgi-nginx-f
 
 A few adjustments have been made along the way, but all configuration and
 general instruction references are holding for this project, too.
+
+### Log in to Production Bastion Host
+
+SSH forward into bastion host in order to further jump through private network instances. You need to 
+use the private IP address!
+
+```sh
+# Activate the vpn connection in network settings
+$ make vpn
+
+$ ssh -A -i /path/to/<VPN Access Key>.pem ec2-user@<Private IP>
+
+```
 
 
 ## Author

@@ -1,0 +1,94 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+    All security groups used within dockerflaskapi stack.
+    - Ecs hosts will only allow traffic from ALB
+    - Alb will allow traffic from 0.0.0.0/0
+
+Parameters:
+
+  ProjectNamePrefix:
+    Description: Used for ecs resources and consistent naming
+    Type: String
+
+  TargetVpc:
+    Description: Vpc in which following sg will be deployed to
+    Type: String
+
+  VpnBaseCidr:
+    Description: Ingress for VPN to cluster resources
+    Type: String
+
+Resources:
+
+  FlaskApiEcsSg:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: SG for all cluster resources including tasks, services, and EC2 nodes
+      VpcId: !Ref TargetVpc
+      SecurityGroupIngress:
+        # -1 stands for ALL
+        - IpProtocol: -1
+          SourceSecurityGroupId: !Ref FlaskApiAlbSg
+        - IpProtocol: -1
+          SourceSecurityGroupId: !Ref FlaskApiRedisSg
+        # This is for local access through vpn
+        - IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          CidrIp: !Ref VpnBaseCidr
+          Description: VPN local network ingress for maintenance
+        # Overlay networks requirements
+        # https://docs.docker.com/network/overlay/
+        - IpProtocol: tcp
+          FromPort: '2377'
+          ToPort: '2377'
+          CidrIp: !Ref VpnBaseCidr
+        - IpProtocol: -1
+          FromPort: '7946'
+          ToPort: '7946'
+          CidrIp: !Ref VpnBaseCidr
+        - IpProtocol: udp
+          FromPort: '4789'
+          ToPort: '4789'
+          CidrIp: !Ref VpnBaseCidr
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectNamePrefix}-ecs-hosts-sg
+
+  # NOTE: This Load Balancer will only allow internal connections
+  FlaskApiAlbSg:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: SG for ALB in FlaskApi
+      VpcId: !Ref TargetVpc
+      SecurityGroupIngress:
+        - IpProtocol: -1
+          CidrIp: !Ref VpnBaseCidr
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectNamePrefix}-alb-sg
+
+  FlaskApiRedisSg:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security Group for ingress to Redis replica sets
+      VpcId: !Ref TargetVpc
+      SecurityGroupIngress:
+        - CidrIp: !Ref VpnBaseCidr
+          FromPort: 6379
+          ToPort: 6379
+          IpProtocol: 'tcp'
+
+Outputs:
+
+    FlaskApiEcsHostsSgName:
+      Description: Carry over the ECS Hosts SG reference
+      Value: !Ref FlaskApiEcsSg
+
+    FlaskApiAlbSgName:
+      Description: Carry over the ALB SG reference
+      Value: !Ref FlaskApiAlbSg
+
+    FlaskApiRedisSgName:
+      Description: Include Redis SG into ECS resources
+      Value: !Ref FlaskApiRedisSg

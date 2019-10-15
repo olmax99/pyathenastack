@@ -1,0 +1,338 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: >
+  Service and task definitions for the actual FlaskApi project.
+
+Parameters:
+
+  ProjectNamePrefix:
+    Description: Used for ecs resources and consistent naming
+    Type: String
+
+  FlaskApiVpcId:
+    Description: Reference to the FlaskApi VPC
+    Type: String
+
+  TargetCluster:
+    Description: Target cluster for the tasks and services to run on
+    Type: String
+
+  TargetSubnets:
+    Description: Network config for services
+    Type: List<AWS::EC2::Subnet::Id>
+
+  TargetAlbArn:
+    Description: Target for custom listener rules on top of the existing dummy rule
+    Type: String
+
+  EcrRepoName:
+    Description: The full name of the newly created registry
+    Type: String
+
+  RedisHostName:
+    Description: Address of the Redis master node
+    Type: String
+
+Resources:
+
+  # ---------------------- Load Balancing Nginx---------------------------------
+
+  CustomNginxListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref TargetAlbArn
+      Port: 5000
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref FlaskApiWebGroup
+
+  FlaskApiWebGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Sub ${ProjectNamePrefix}-web-tg
+      VpcId: !Ref FlaskApiVpcId
+      Port: 5000
+      Protocol: HTTP
+      # ---------- Health Check Settings------------
+      Matcher:
+        HttpCode: 200-299
+      HealthCheckIntervalSeconds: 10
+      HealthCheckPath: /
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 5
+      UnhealthyThresholdCount: 2
+      TargetType: instance
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: '20'
+
+  WebListenerRule:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      ListenerArn: !Ref CustomNginxListener
+      Priority: 1
+      # Forward all traffic coming from load balancer to FlaskApiWebGroup
+      Conditions:
+        - Field: host-header
+          Values:
+            - '*.elb.amazonaws.com'
+      Actions:
+        - TargetGroupArn: !Ref FlaskApiWebGroup
+          Type: forward
+
+  # ---------------------- Load Balancing Flower-------------------------------
+
+  CustomFlowerListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref TargetAlbArn
+      Port: 5555
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref FlaskApiFlowerGroup
+
+  FlaskApiFlowerGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Sub ${ProjectNamePrefix}-flower-tg
+      VpcId: !Ref FlaskApiVpcId
+      Port: 5555
+      Protocol: HTTP
+      # ---------- Health Check Settings------------
+      Matcher:
+        HttpCode: 200-299
+      HealthCheckIntervalSeconds: 10
+      HealthCheckPath: /
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 5
+      UnhealthyThresholdCount: 2
+      TargetType: instance
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: '20'
+
+  FlowerListenerRule:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      ListenerArn: !Ref CustomFlowerListener
+      Priority: 1
+      # Forward all traffic coming from load balancer to FlaskApiFlowerGroup
+      Conditions:
+        - Field: host-header
+          Values:
+            - '*.elb.amazonaws.com'
+      Actions:
+        - TargetGroupArn: !Ref FlaskApiFlowerGroup
+          Type: forward
+
+  # ---------------------- Services & Tasks-------------------------------
+
+  FlaskApiWebService:
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster: !Ref TargetCluster
+      DesiredCount: 1
+      TaskDefinition: !Ref FlaskApiWeb
+      LaunchType: EC2
+      ServiceName: nginx-flaskapi-svc
+      # DO NOT DEFINE ROLE HERE
+      # ECS service-linked role is used by default in case of multiple targets
+      # Role:
+      LoadBalancers:
+        - ContainerName: nginx-flaskapi
+          ContainerPort: 5000
+          TargetGroupArn: !Ref FlaskApiWebGroup
+        - ContainerName: flower-flaskapi
+          ContainerPort: 5555
+          TargetGroupArn: !Ref FlaskApiFlowerGroup
+#      NetworkConfiguration:
+#        AwsvpcConfiguration:
+#          AssignPublicIp: 'DISABLED'
+#          Subnets: !Ref TargetSubnets
+
+  FlaskApiWorkerService:
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster: !Ref TargetCluster
+      DesiredCount: 1
+      TaskDefinition: !Ref FlaskApiWorker
+      LaunchType: EC2
+      ServiceName: worker-flaskapi-svc
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: 'DISABLED'
+          Subnets: !Ref TargetSubnets
+
+  # ---------------------- Nginx-Flask-Flower------------------------------
+
+  FlaskApiWeb:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub ${ProjectNamePrefix}-api
+      RequiresCompatibilities:
+        - 'EC2'
+      # Memory: '512'
+      # Minimum guaranteed compute
+      Cpu: '512'
+      ContainerDefinitions:
+        - Name: nginx-flaskapi
+          Image: !Sub ${EcrRepoName}/nginx-flaskapi
+          # Soft limit, which can be escaped
+          MemoryReservation: 256
+          Essential: true
+          Environment:
+            - Name: 'FLASK_APP'
+              Value: 'flaskapi/api.py'
+            - Name: 'RUN_MODE'
+              Value: 'PRODUCTION'
+            - Name: 'C_FORCE_ROOT'
+              Value: 'true'
+            - Name: 'REDIS_URI'
+              Value: !Sub 'redis://:@${RedisHostName}:6379/0'
+            - Name: 'CELERY_BROKER_URL'
+              Value: !Sub 'redis://:@${RedisHostName}:6379/0'
+            - Name: 'CELERY_RESULT_BACKEND'
+              Value: !Sub 'redis://:@${RedisHostName}:6379/0'
+          # TODO: Create shared volume with celery worker
+          # MountPoints:
+          #   - SourceVolume: S3Fuse-RexRay
+          #     ContainerPath: /app/data
+          PortMappings:
+            - ContainerPort: 5000
+              # Protocol: http
+              # In 'awsvpc' leave for auto-assign HostPort
+              HostPort: 0
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-region: !Ref AWS::Region
+              awslogs-group: !Ref FlaskApiLogGroupWeb
+              awslogs-stream-prefix: !Sub ${ProjectNamePrefix}-nginx
+        - Name: flower-flaskapi
+          Image: !Sub ${EcrRepoName}/flower-flaskapi
+          MemoryReservation: 256
+          Essential: false
+          Environment:
+            - Name: 'CELERY_BROKER_URL'
+              Value: !Sub 'redis://:@${RedisHostName}:6379/0'
+            - Name: 'FLOWER_PORT'
+              Value: '5555'
+          PortMappings:
+            - ContainerPort: 5555
+              HostPort: 0
+          EntryPoint:
+            - 'flower'
+          Command:
+            - '--port=5555'
+            - !Sub '--broker=redis://:@${RedisHostName}:6379/0'
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-region: !Ref AWS::Region
+              awslogs-group: !Ref FlaskApiLogGroupWeb
+              awslogs-stream-prefix: !Sub ${ProjectNamePrefix}-flower
+      NetworkMode: 'bridge'
+      ExecutionRoleArn: !Ref DefaultServiceExecutionRole
+
+  # ----------------------- Celery-Worker--------------------------------
+
+  FlaskApiWorker:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub ${ProjectNamePrefix}-worker
+      RequiresCompatibilities:
+        - 'EC2'
+      # Memory: '512'
+      # Minimum guaranteed compute
+      Cpu: '512'
+      ContainerDefinitions:
+        - Name: worker-flaskapi
+          Image: !Sub ${EcrRepoName}/celery-flaskapi
+          # Soft limit, which can be escaped
+          MemoryReservation: 256
+          Environment:
+            - Name: 'CELERY_BROKER_URL'
+              Value: !Sub 'redis://:@${RedisHostName}:6379/0'
+            - Name: 'CELERY_RESULT_BACKEND'
+              Value: !Sub 'redis://:@${RedisHostName}:6379/0'
+            - Name: 'C_FORCE_ROOT'
+              Value: 'true'
+          # TODO: Create shared volume with celery worker
+          # MountPoints:
+          #   - SourceVolume: S3Fuse-RexRay
+          #     ContainerPath: /app/data
+          EntryPoint:
+            - 'celery'
+          Command:
+            - '-A'
+            - 'tasks'
+            - 'worker'
+            - '--loglevel=INFO'
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-region: !Ref AWS::Region
+              awslogs-group: !Ref FlaskApiLogGroupWeb
+              awslogs-stream-prefix: !Sub ${ProjectNamePrefix}-worker
+      NetworkMode: 'awsvpc'
+      ExecutionRoleArn: !Ref DefaultServiceExecutionRole
+
+  # ---------------------- Service Roles----------------------------------
+
+  # TODO: Restrict s3 + verify if necessary (EC2 Launch Type containers take the same
+  # permissions as the cluster instances
+  DefaultServiceExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      RoleName: !Sub ${ProjectNamePrefix}-${AWS::Region}-web-service-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          Action:
+          - 'sts:AssumeRole'
+          Effect: "Allow"
+          Principal:
+            Service: ecs-tasks.amazonaws.com
+      Policies:
+        - PolicyName: !Sub ecs-service-${AWS::StackName}
+          PolicyDocument:
+            {
+              "Version": "2012-10-17",
+              "Statement": [{
+                "Effect": "Allow",
+                "Action": [
+                  "s3:*",
+                  "ec2:AuthorizeSecurityGroupIngress",
+                  "ec2:Describe*",
+                  "elasticloadbalancing:DeregisterInstancesFromLoadBalancer",
+                  "elasticloadbalancing:Describe*",
+                  "elasticloadbalancing:RegisterInstancesWithLoadBalancer",
+                  "elasticloadbalancing:DeregisterTargets",
+                  "elasticloadbalancing:DescribeTargetGroups",
+                  "elasticloadbalancing:DescribeTargetHealth",
+                  "elasticloadbalancing:RegisterTargets"
+                ],
+                "Resource": "*"
+              }]
+            }
+
+        - PolicyName: !Sub ecs-service-${ProjectNamePrefix}
+          PolicyDocument:
+            Statement:
+              Effect: "Allow"
+              Action:
+                - s3:*
+              Resource: "*"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+
+  # ---------------------- Logs-------------------------------------------
+
+  FlaskApiLogGroupWeb:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /ecs/${ProjectNamePrefix}
+

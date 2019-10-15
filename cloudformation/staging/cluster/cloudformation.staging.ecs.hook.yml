@@ -1,0 +1,212 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: >
+  This lifecycle hook's sole purpose is to drain running tasks from instances that are selected
+  for termination:
+  1. Instance terminating activates LifecycleHook
+  2. LifecycleHook invokes SnsDrainTopic
+  3. SnsDrainTopic triggers DrainHookLambda
+
+Parameters:
+
+  ProjectNamePrefix:
+    Description: Used for ecs resources and consistent naming
+    Type: String
+
+  TargetCluster:
+    Description: Target cluster for Lambda to check for running tasks at target cluster instances
+    Type: String
+
+  TargetAutoScalingGrp:
+    Description: Target AutoScaling Group of the Lifecycle Hook
+    Type: String
+
+Resources:
+
+  # ------------------------- 1. LifecycleHook-------------------------------
+
+  LifecycleHook:
+    Type: AWS::AutoScaling::LifecycleHook
+    DependsOn: SnsDrainTopic
+    Properties:
+      AutoScalingGroupName: !Ref TargetAutoScalingGrp
+      # Default action to take by AutoScalingGroup if LifecycleHook times out
+      DefaultResult: ABANDON
+      # Time limit in sec before timeout
+      HeartbeatTimeout: '900'
+      # There are to type of hooks: LAUNCHING or TERMINATING
+      LifecycleTransition: 'autoscaling:EC2_INSTANCE_TERMINATING'
+      NotificationTargetARN: !Ref SnsDrainTopic
+      RoleARN: !GetAtt AutoScalingAccessRole.Arn
+
+  AutoScalingAccessRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - autoscaling.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AutoScalingNotificationAccessRole'
+
+  # ------------------------- 2. SNS Drain Topic-----------------------------
+
+  SnsDrainTopic:
+    Type: AWS::SNS::Topic
+    DependsOn: DrainHookLambda
+    Properties:
+      Subscription:
+        - Endpoint: !GetAtt DrainHookLambda.Arn
+          Protocol: lambda
+
+  # ------------------------- 3. Lambda: Drain Tasks--------------------------------
+
+  DrainHookLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub ${ProjectNamePrefix}-drainhook-lambda
+      Description: Drain all tasks, wait, check if there are no active tasks left, proceed termination
+      Environment:
+        Variables:
+          TARGET_CLUSTER: !Ref TargetCluster
+      Code:
+        ZipFile: !Sub |
+          import boto3
+          import json
+          import os
+          import time
+          import logging
+
+          logger = logging.getLogger(__name__)
+
+          def setup(level='DEBUG', boto_level=None, **kwargs):
+              logging.root.setLevel(level)
+
+              if not boto_level:
+                  boto_level = level
+
+              logging.getLogger('boto').setLevel(boto_level)
+              logging.getLogger('boto3').setLevel(boto_level)
+              logging.getLogger('botocore').setLevel(boto_level)
+              logging.getLogger('urllib3').setLevel(boto_level)
+
+          try:
+              setup('DEBUG', formatter_cls=None, boto_level='ERROR')
+          except Exception as e:
+              logger.error(e, exc_info=True)
+
+          ec2_client = boto3.client('ec2')
+          ecs_client = boto3.client('ecs')
+          autoscale_client = boto3.client('autoscaling')
+          sns_client = boto3.client('sns')
+          lambda_client = boto3.client('lambda')
+
+          def publish_sns_message(topic_arn, message):
+            res = sns_client.publish(TopicArn=topic_arn, Message=json.dumps(message), Subject='reinvoking')
+
+          def set_status_to_draining(ecs_cluster_name, ec2_instance_arn):
+            res = ecs_client.update_container_instances_state(cluster=ecs_cluster_name, containerInstances=[ec2_instance_arn], status='DRAINING')
+
+          def check_running_tasks(ecs_cluster_name, ec2_instance_id):
+            current_instances = ecs_client.list_container_instances(cluster=ecs_cluster_name)['containerInstanceArns']
+            target_tasks = ecs_client.describe_container_instances(cluster=ecs_cluster_name,
+                                                                   containerInstances=current_instances)
+            # If there ate active tasks, set them to draining
+            # return either signal 1 for waiting and repeating the check or
+            # return signal 0 in order to proceed with termination
+            for ecs_inst in target_tasks['containerInstances']:
+              if ecs_inst['ec2InstanceId'] == ec2_instance_id:
+                if ecs_inst['status'] == 'ACTIVE':
+                  set_status_to_draining(ecs_cluster_name, ecs_inst['containerInstanceArn'])
+                  return 1
+                if (ecs_inst['runningTasksCount'] > 0) or (ecs_inst['pendingTasksCount'] > 0):
+                  return 1
+                return 0
+            return 2
+
+          def handler(event, context):
+            target_cluster = os.environ['TARGET_CLUSTER']
+            sns_topic_arn = event['Records'][0]['Sns']['TopicArn']
+
+            sns_message = json.loads(event['Records'][0]['Sns']['Message'])
+            try:
+              lifecycle_name = sns_message['LifecycleHookName']
+            except KeyError as e:
+              logger.info("Failed to retrieve Key from lifecycle event.")
+              return {'sns_message': sns_message, 'error': str(e)}
+            lifecycle_token = sns_message['LifecycleActionToken']
+            target_asg = sns_message['AutoScalingGroupName']
+            instance_id = sns_message['EC2InstanceId']
+
+            resp_check = check_running_tasks(ecs_cluster_name=target_cluster, ec2_instance_id=instance_id)
+            if resp_check == 0:
+              try:
+                res = autoscale.client.complete_lifecycle_action(LifecycleHookName=lifecycle_name,
+                                                                 AutoScalingGroupName=target_asg,
+                                                                 LifecycleActionToken=lifecycle_token,
+                                                                 LifecycleActionResult='CONTINUE')
+              except BaseException as e:
+                logger.info(f"Complete lifecycle action failed: {e}")
+            elif resp_check == 1:
+              time.sleep(5)
+              publish_sns_message(topic_arn=sns_topic_arn, message=sns_message)
+
+      Handler: index.handler
+      Role: !GetAtt DrainHookExecutionRole.Arn
+      Runtime: python3.7
+      Timeout: 20
+
+  DrainHookInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref DrainHookLambda
+      Action: 'lambda:InvokeFunction'
+      Principal: sns.amazonaws.com
+      SourceArn: !Ref SnsDrainTopic
+
+  DrainHookExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Policies:
+        - PolicyName: DrainHookExecutionPolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'autoscaling:CompleteLifecycleAction'
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                  - 'ec2:DescribeInstances'
+                  - 'ec2:DescribeInstanceAttribute'
+                  - 'ec2:DescribeInstanceStatus'
+                  - 'ec2:DescribeHosts'
+                  - 'ecs:ListContainerInstances'
+                  - 'ecs:SubmitContainerStateChange'
+                  - 'ecs:SubmitTaskStateChange'
+                  - 'ecs:DescribeContainerInstances'
+                  - 'ecs:UpdateContainerInstancesState'
+                  - 'ecs:ListTasks'
+                  - 'ecs:DescribeTasks'
+                  - 'sns:Publish'
+                  - 'sns:ListSubscriptions'
+                Resource: '*'
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AutoScalingNotificationAccessRole'
+
+

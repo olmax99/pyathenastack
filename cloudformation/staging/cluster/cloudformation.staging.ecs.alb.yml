@@ -1,0 +1,70 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: >
+  ALB to expose all Ecs cluster services to the igw.
+
+Parameters:
+
+  ProjectNamePrefix:
+    Description: Used for ecs resources and consistent naming
+    Type: String
+
+  TargetVpc:
+    Description: Vpc in which following alb will be deployed to
+    Type: AWS::EC2::VPC::Id
+
+  TargetSubnets:
+    Description: Select a list of target subnets for ALB deployment
+    Type: List<AWS::EC2::Subnet::Id>
+
+  TargetSg:
+    Description: Select the SG for the ALB
+    Type: AWS::EC2::SecurityGroup::Id
+
+Resources:
+
+  FlaskApiAlb:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub ${ProjectNamePrefix}-alb
+      Scheme: internal
+      Subnets: !Ref TargetSubnets
+      SecurityGroups:
+        - !Ref TargetSg
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectNamePrefix}-alb
+
+  DefaultAlbListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref FlaskApiAlb
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref DefaultTargetGroup
+
+  # NOTE: The Dummy Target Group is required by the Alb definition. The actual TGs
+  # will be defined in the respective service definitions.
+  DefaultTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Sub ${ProjectNamePrefix}-default-tg
+      VpcId: !Ref TargetVpc
+      Port: 80
+      Protocol: HTTP
+
+Outputs:
+
+  FlaskApiAlbNameOut:
+    Description: Reference to the FlaskApi Application Load Balancer
+    Value: !Ref FlaskApiAlb
+
+  FlaskApiAlbListenerOut:
+    Description: Reference to the listener used by custom rules in services
+    Value: !Ref DefaultAlbListener
+
+  FlaskApiAlbUrl:
+    Description: URL of the FlaskApi Application Load Balancer
+    Value: !GetAtt FlaskApiAlb.DNSName

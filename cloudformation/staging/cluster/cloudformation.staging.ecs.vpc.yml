@@ -1,0 +1,233 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: >
+  - 2 public, 2 private subnets in 2 AZs respectively
+  - Each public subnet contains:
+    - Internet Gateway
+    - NAT with route to private subnets
+
+Parameters:
+
+  ProjectNamePrefix:
+    Description: Used for vpc resources and consistent naming
+    Type: String
+    Default: flaskapi-staging
+
+  VpcCidrBase:
+    Description: Base IP range for entire Vpc
+    Type: String
+    Default: 10.0.0.0/16
+
+  PublicSubnetACidr:
+    Description: Cidr of public subnet A
+    Type: String
+    Default: 10.0.8.0/21
+
+  PublicSubnetBCidr:
+    Description: Cidr of public subnet B
+    Type: String
+    Default: 10.0.16.0/21
+
+  PrivateSubnetACidr:
+    Description: Cidr of private subnet A
+    Type: String
+    Default: 10.0.24.0/21
+
+  PrivateSubnetBCidr:
+    Description: Cidr of private subnet B
+    Type: String
+    Default: 10.0.32.0/21
+
+Resources:
+
+  FlaskApiVpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCidrBase
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectNamePrefix}-vpc
+
+  # ------------------ Internet Gateway------------------------
+
+  Igw:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectNamePrefix}-igw
+  IgwAttach:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref Igw
+      VpcId: !Ref FlaskApiVpc
+
+  # ------------------ Subnets---------------------------------
+
+  FlaskApiPublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref FlaskApiVpc
+      AvailabilityZone: !Select
+        - 0
+        - Fn::GetAZs: ""
+      CidrBlock: !Ref PublicSubnetACidr
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectNamePrefix}-publicA-sn
+  FlaskApiPublicSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref FlaskApiVpc
+      AvailabilityZone: !Select
+        - 1
+        - Fn::GetAZs: ""
+      CidrBlock: !Ref PublicSubnetBCidr
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectNamePrefix}-publicB-sn
+  FlaskApiPrivateSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref FlaskApiVpc
+      AvailabilityZone: !Select
+        - 0
+        - Fn::GetAZs: ""
+      CidrBlock: !Ref PrivateSubnetACidr
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectNamePrefix}-privateA-sn
+  FlaskApiPrivateSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref FlaskApiVpc
+      AvailabilityZone: !Select
+        - 1
+        - Fn::GetAZs: ""
+      CidrBlock: !Ref PrivateSubnetBCidr
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectNamePrefix}-privateB-sn
+
+  # --------------------- NAT-----------------------------
+
+  NatAEip:
+    Type: AWS::EC2::EIP
+    DependsOn: IgwAttach
+    Properties:
+      Domain: vpc
+  NatBEip:
+    Type: AWS::EC2::EIP
+    DependsOn: IgwAttach
+    Properties:
+      Domain: vpc
+  NatGwA:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatAEip.AllocationId
+      SubnetId: !Ref FlaskApiPublicSubnetA
+  NatGwB:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatBEip.AllocationId
+      SubnetId: !Ref FlaskApiPublicSubnetB
+
+  # --------------------- Routes---------------------------
+
+  PublicRtb:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref FlaskApiVpc
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectNamePrefix}-public-rtb
+  PublicInternetRoute:
+    Type: AWS::EC2::Route
+    DependsOn: IgwAttach
+    Properties:
+      RouteTableId: !Ref PublicRtb
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref Igw
+  PublicSubnetARtbAssociate:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRtb
+      SubnetId: !Ref FlaskApiPublicSubnetA
+  PublicSubnetBRtbAssociate:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRtb
+      SubnetId: !Ref FlaskApiPublicSubnetB
+
+  PrivateRtbA:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref FlaskApiVpc
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectNamePrefix}-privateA-rtb
+
+  PrivateRouteA:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRtbA
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGwA
+
+  PrivateSubnetARtbAssociate:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRtbA
+      SubnetId: !Ref FlaskApiPrivateSubnetA
+
+  PrivateRtbB:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref FlaskApiVpc
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectNamePrefix}-privateB-rtb
+
+  PrivateRouteB:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRtbB
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGwB
+
+  PrivateSubnetBRtbAssociate:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRtbB
+      SubnetId: !Ref FlaskApiPrivateSubnetB
+
+Outputs:
+
+  FlaskApiVpcOut:
+    Description: Reference for the VPC
+    Value: !Ref FlaskApiVpc
+
+  FlaskApiPublicSubnetsOut:
+    Description: A list of the public subnets
+    Value: !Join [ ",", [ !Ref FlaskApiPublicSubnetA, !Ref FlaskApiPublicSubnetB ]]
+  FlaskApiPublicSubnetAOut:
+    Description: A reference to the public subnet in Availability Zone A
+    Value: !Ref FlaskApiPublicSubnetA
+  FlaskApiPublicSubnetBOut:
+    Description: A reference to the public subnet in Availability Zone B
+    Value: !Ref FlaskApiPublicSubnetB
+
+  FlaskApiPrivateSubnetsOut:
+    Description: A list of the private subnets
+    Value: !Join [ ",", [ !Ref FlaskApiPrivateSubnetA, !Ref FlaskApiPrivateSubnetB ]]
+  FlaskApiPrivateSubnetAOut:
+    Description: A reference to the private subnet in Availability Zone A
+    Value: !Ref FlaskApiPrivateSubnetA
+  FlaskApiPrivateSubnetBOut:
+    Description: A reference to the private subnet in Availability Zone B
+    Value: !Ref FlaskApiPrivateSubnetB
