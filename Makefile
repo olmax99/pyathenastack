@@ -14,18 +14,15 @@ ecr:
 	aws ecr create-repository --repository-name nginx-flaskapi
 	aws ecr create-repository --repository-name celery-flaskapi
 	aws ecr create-repository --repository-name flower-flaskapi
-	aws ecr create-repository --repository-name redis
 
 tag:
 	docker tag celery-flaskapi ${ECR_REPO_PREFIX}/celery-flaskapi
 	docker tag nginx-flaskapi ${ECR_REPO_PREFIX}/nginx-flaskapi
 	docker tag mher/flower ${ECR_REPO_PREFIX}/flower-flaskapi
-	docker tag redis:5.0-apline ${ECR_REPO_PREFIX}/redis:5.0-alpine
 
 push:
 	docker push ${ECR_REPO_PREFIX}/celery-flaskapi
 	docker push ${ECR_REPO_PREFIX}/nginx-flaskapi
-	docker push ${ECR_REPO_PREFIX}/redis:5.0-alpine
 	docker push ${ECR_REPO_PREFIX}/flower-flaskapi
 
 templates:
@@ -38,6 +35,7 @@ cluster:
 	--parameters ParameterKey="EcrRepoPrefix",ParameterValue="${ECR_REPO_PREFIX}" \
 	ParameterKey="VpnAccessKey",ParameterValue="${VPN_KEY_NAME}" \
 	ParameterKey="LocalBaseIp",ParameterValue="${CURRENT_LOCAL_IP}" \
+	ParameterKey="CloudformationBucket",ParameterValue="${CFN_TEMPLATES_BUCKET}" \
 	--capabilities CAPABILITY_NAMED_IAM
 
 vpn:

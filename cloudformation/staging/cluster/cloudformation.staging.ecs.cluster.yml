@@ -43,6 +43,10 @@ Parameters:
     Description: Forward from cloudformation create-stack input parameters
     Type: String
 
+  CfnLogsBucket:
+    Description: Upload cfn-init logs
+    Type: String
+
 Resources:
 
   FlaskApiEcsCluster:
@@ -106,19 +110,36 @@ Resources:
       AWS::CloudFormation::Init:
         configSets:
           EcsNodeConfigSet:
+#            - step0_enable_epel
             - step1_install_requirements
-            - step2_add_new_instance
-            - step3_configure_instance
-            - step4_enable_services
+#            - step2_install_dockerplugin
+            - step3_add_new_instance
+            - step4_configure_instance
+            - step5_enable_services
+#            - step6_upload_log_files
+#        step0_enable_epel:
+#          commands:
+#            a_enable_epel:
+#              test: "test -z $(grep -Fx '[amzn2extra-epel]' /etc/yum.repos.d/amzn2-extras.repo)"
+#              command: "amazon-linux-extras install epel"
+#              ignoreErrors: "false"
         step1_install_requirements:
           packages:
             yum:
+#              epel-release: []
+#              s3fs-fuse: []
               awslogs: []
-        step2_add_new_instance:
+#        step2_install_dockerplugin:
+#          commands:
+#            a_install_rexray:
+#              command: !Sub |
+#                docker plugin install rexray/s3fs:0.11.4 S3FS_REGION=${AWS::Region} S3FS_OPTIONS="allow_other,iam_role=auto,umask=000" LIBSTORAGE_INTEGRATION_VOLUME_OPERATIONS_MOUNT_ROOTPATH=/ --grant-all-permissions
+        step3_add_new_instance:
           commands:
             a_add_instance_to_cluster:
-              command: !Sub echo ECS_CLUSTER=${FlaskApiEcsCluster} >> /etc/ecs/ecs.config
-        step3_configure_instance:
+              command: !Sub |
+                echo ECS_CLUSTER=${FlaskApiEcsCluster} >> /etc/ecs/ecs.config
+        step4_configure_instance:
           files:
             "/etc/cfn/cfn-hup.conf":
               mode: 000400
@@ -179,7 +200,7 @@ Resources:
                 log_group_name = ${FlaskApiEcsCluster}-/var/log/ecs/audit.log
                 log_stream_name = ${FlaskApiEcsCluster}
                 datetime_format = %Y-%m-%dT%H:%M:%SZ
-        step4_enable_services:
+        step5_enable_services:
           services:
             sysvinit:
               # update-stack daemon that detects changes
@@ -195,10 +216,16 @@ Resources:
                 files:
                   - /etc/awslogs/awslogs.conf
                   - /etc/awslogs/awscli.conf
+#        step6_upload_log_files:
+#          commands:
+#            cwd: "/var/log"
+#            test: "test -e /var/log/cfn-init.log"
+#            command: !Sub |
+#              aws s3 cp /var/log/* s3://${CfnLogsBucket}/cfn-init-logs
 
   # ---------------------- IAM Profile------------------------------
 
-  # NOTE: This Role will apply to ALL hosts and AL containers that
+  # NOTE: This Role will apply to ALL hosts and ALL containers that
   # are running on them.
 
   DefaultClusterRole:
@@ -218,6 +245,11 @@ Resources:
         }
       Policies:
         - PolicyName: ecs-service
+          # "s3:CreateBucket",
+          # "s3:DeleteBucket",
+          # "s3:ListBucket",
+          # "s3:ListAllMyBuckets",
+          # "s3:GetBucketLocation",
           PolicyDocument: |
             {
               "Statement": [{

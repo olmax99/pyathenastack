@@ -33,6 +33,10 @@ Parameters:
     Description: Address of the Redis master node
     Type: String
 
+  VolumeBucket:
+    Description: Rexray data volumes
+    Type: String
+
 Resources:
 
   # ---------------------- Load Balancing Nginx---------------------------------
@@ -131,15 +135,13 @@ Resources:
 
   FlaskApiWebService:
     Type: AWS::ECS::Service
+    # Worker need to be created first in order to provision shared volume
     Properties:
       Cluster: !Ref TargetCluster
       DesiredCount: 1
       TaskDefinition: !Ref FlaskApiWeb
       LaunchType: EC2
       ServiceName: nginx-flaskapi-svc
-      # DO NOT DEFINE ROLE HERE
-      # ECS service-linked role is used by default in case of multiple targets
-      # Role:
       LoadBalancers:
         - ContainerName: nginx-flaskapi
           ContainerPort: 5000
@@ -147,16 +149,12 @@ Resources:
         - ContainerName: flower-flaskapi
           ContainerPort: 5555
           TargetGroupArn: !Ref FlaskApiFlowerGroup
-#      NetworkConfiguration:
-#        AwsvpcConfiguration:
-#          AssignPublicIp: 'DISABLED'
-#          Subnets: !Ref TargetSubnets
 
   FlaskApiWorkerService:
     Type: AWS::ECS::Service
     Properties:
       Cluster: !Ref TargetCluster
-      DesiredCount: 1
+      DesiredCount: 2
       TaskDefinition: !Ref FlaskApiWorker
       LaunchType: EC2
       ServiceName: worker-flaskapi-svc
@@ -195,10 +193,10 @@ Resources:
               Value: !Sub 'redis://:@${RedisHostName}:6379/0'
             - Name: 'CELERY_RESULT_BACKEND'
               Value: !Sub 'redis://:@${RedisHostName}:6379/0'
-          # TODO: Create shared volume with celery worker
-          # MountPoints:
-          #   - SourceVolume: S3Fuse-RexRay
-          #     ContainerPath: /app/data
+          # Depends on existing shared volume with celery worker
+          MountPoints:
+            - SourceVolume: !Ref VolumeBucket
+              ContainerPath: /app/data
           PortMappings:
             - ContainerPort: 5000
               # Protocol: http
@@ -233,6 +231,15 @@ Resources:
               awslogs-region: !Ref AWS::Region
               awslogs-group: !Ref FlaskApiLogGroupWeb
               awslogs-stream-prefix: !Sub ${ProjectNamePrefix}-flower
+      Volumes:
+        - Name: !Ref VolumeBucket
+          # Empty Host parameter -> data may not persist on host
+          # Host: null
+          DockerVolumeConfiguration:
+            # Needs to exist prior to task creation
+            Autoprovision: false
+            Driver: 'rexray/s3fs:0.11.4'
+            Scope: shared
       NetworkMode: 'bridge'
       ExecutionRoleArn: !Ref DefaultServiceExecutionRole
 
@@ -260,9 +267,9 @@ Resources:
             - Name: 'C_FORCE_ROOT'
               Value: 'true'
           # TODO: Create shared volume with celery worker
-          # MountPoints:
-          #   - SourceVolume: S3Fuse-RexRay
-          #     ContainerPath: /app/data
+          MountPoints:
+            - SourceVolume: !Sub ${ProjectNamePrefix}-rexray-vol
+              ContainerPath: /queue/data
           EntryPoint:
             - 'celery'
           Command:
@@ -276,6 +283,17 @@ Resources:
               awslogs-region: !Ref AWS::Region
               awslogs-group: !Ref FlaskApiLogGroupWeb
               awslogs-stream-prefix: !Sub ${ProjectNamePrefix}-worker
+      Volumes:
+        - Name: !Sub ${ProjectNamePrefix}-rexray-data-vol
+          # Empty Host parameter -> data may not persist on host
+          # Host: null
+          DockerVolumeConfiguration:
+            # Automatically create if not exist
+            Autoprovision: false
+            Driver: 'rexray/s3fs:0.11.4'
+            # DriverOpts:
+            #   - ???
+            Scope: shared
       NetworkMode: 'awsvpc'
       ExecutionRoleArn: !Ref DefaultServiceExecutionRole
 
@@ -307,6 +325,16 @@ Resources:
                   "s3:*",
                   "ec2:AuthorizeSecurityGroupIngress",
                   "ec2:Describe*",
+                  "ec2:CreateTags",
+                  "ec2:AttachVolume",
+                  "ec2:DetachVolume",
+                  "ec2:CreateVolume",
+                  "ec2:DeleteVolume",
+                  "ec2:DescribeVolumes",
+                  "ec2:DescribeVolumeStatus",
+                  "ec2:CreateSnapshot",
+                  "ec2:DeleteSnapshot",
+                  "ec2:DescribeSnapshots",
                   "elasticloadbalancing:DeregisterInstancesFromLoadBalancer",
                   "elasticloadbalancing:Describe*",
                   "elasticloadbalancing:RegisterInstancesWithLoadBalancer",

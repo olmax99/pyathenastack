@@ -1,0 +1,34 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: >
+  All resources required for enabling data store and athena
+
+Parameters:
+
+  ProjectNamePrefix:
+    Description: Used for ecs resources and consistent naming
+    Type: String
+
+Resources:
+
+ FlaskApiDataLakeBucket:
+   Type: AWS::S3::Bucket
+   Description: Data lake for unprocessed workloads from rexray volumes
+   Properties:
+     AccessControl: Private
+     BucketEncryption:
+       ServerSideEncryptionConfiguration:
+         - ServerSideEncryptionByDefault:
+             SSEAlgorithm: AES256
+     BucketName: !Sub ${ProjectNamePrefix}-rexray-data-vol
+     PublicAccessBlockConfiguration:
+       BlockPublicAcls: True
+       BlockPublicPolicy: True
+       IgnorePublicAcls: True
+       RestrictPublicBuckets: True
+
+Outputs:
+
+  DataLakeBucketNameOut:
+    Description: Rexray volumes
+    Value: !Ref FlaskApiDataLakeBucket

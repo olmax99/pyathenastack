@@ -25,6 +25,10 @@ Parameters:
     Description: The Ip for which you want to allow the VPN being used from
     Type: String
 
+  CloudformationBucket:
+    Description: Templates and logs
+    Type: String
+
 Resources:
 
   # ------------------ Master Deployment Cluster----------------------------
@@ -73,6 +77,7 @@ Resources:
         TargetSubnets: !GetAtt FlaskApiVpc.Outputs.FlaskApiPrivateSubnetsOut
         TargetSg: !GetAtt FlaskApiSG.Outputs.FlaskApiEcsHostsSgName
         EcsKeyPair: !Ref VpnAccessKey
+        CfnLogsBucket: !Ref CloudformationBucket
 
   # NOTE: Some maintenance on the ECS cluster might require to actively shut down cluster nodes. If there
   # are tasks currently running on the target node, they need to be drained before the node termination.
@@ -113,18 +118,26 @@ Resources:
         ClusterNodesType: cache.t2.micro
         RedisSg: !GetAtt FlaskApiSG.Outputs.FlaskApiRedisSgName
 
-  FlaskApiServicesWeb:
+  FlaskApiServicesAthena:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: https://s3.eu-central-1.amazonaws.com/flaskapi-cloudformation-eu-central-1/staging/cloudformation.flaskapi.web.yml
+      TemplateURL: https://s3.eu-central-1.amazonaws.com/flaskapi-cloudformation-eu-central-1/staging/cloudformation.flaskapi.athena.yml
       Parameters:
         ProjectNamePrefix: !Ref AWS::StackName
-        FlaskApiVpcId: !GetAtt FlaskApiVpc.Outputs.FlaskApiVpcOut
-        TargetCluster: !GetAtt FlaskApiEcsCluster.Outputs.FlaskApiEcsClusterOut
-        TargetSubnets: !GetAtt FlaskApiVpc.Outputs.FlaskApiPrivateSubnetsOut
-        TargetAlbArn: !GetAtt FlaskApiAlb.Outputs.FlaskApiAlbNameOut
-        EcrRepoName: !Ref EcrRepoPrefix
-        RedisHostName: !GetAtt FlaskApiServicesRedis.Outputs.RedisHostOut
+
+#  FlaskApiServicesWeb:
+#    Type: AWS::CloudFormation::Stack
+#    Properties:
+#      TemplateURL: https://s3.eu-central-1.amazonaws.com/flaskapi-cloudformation-eu-central-1/staging/cloudformation.flaskapi.web.yml
+#      Parameters:
+#        ProjectNamePrefix: !Ref AWS::StackName
+#        FlaskApiVpcId: !GetAtt FlaskApiVpc.Outputs.FlaskApiVpcOut
+#        TargetCluster: !GetAtt FlaskApiEcsCluster.Outputs.FlaskApiEcsClusterOut
+#        TargetSubnets: !GetAtt FlaskApiVpc.Outputs.FlaskApiPrivateSubnetsOut
+#        TargetAlbArn: !GetAtt FlaskApiAlb.Outputs.FlaskApiAlbNameOut
+#        EcrRepoName: !Ref EcrRepoPrefix
+#        RedisHostName: !GetAtt FlaskApiServicesRedis.Outputs.RedisHostOut
+#        VolumeBucket: !GetAtt FlaskApiServicesAthena.Outputs.DataLakeBucketNameOut
 
 
   # ------------------- Templates Bucket----------------------------
@@ -137,7 +150,7 @@ Resources:
   #   Properties:
   #     AccessControl: Private
   #     BucketEncryption:
-  #       ServerEncryptionConfiguration:
+  #       ServerSideEncryptionConfiguration:
   #       - ServerSideEncryptionByDefault:
   #         SSEAlgorithm: AES256
   #   BucketName: flaskapi-cloudformation-eu-central-1
