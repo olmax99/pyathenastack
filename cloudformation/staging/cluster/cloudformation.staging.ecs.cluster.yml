@@ -116,7 +116,7 @@ Resources:
             - step3_add_new_instance
             - step4_configure_instance
             - step5_enable_services
-#            - step6_upload_log_files
+            - step6_upload_log_files
 #        step0_enable_epel:
 #          commands:
 #            a_enable_epel:
@@ -216,12 +216,27 @@ Resources:
                 files:
                   - /etc/awslogs/awslogs.conf
                   - /etc/awslogs/awscli.conf
-#        step6_upload_log_files:
-#          commands:
-#            cwd: "/var/log"
-#            test: "test -e /var/log/cfn-init.log"
-#            command: !Sub |
-#              aws s3 cp /var/log/* s3://${CfnLogsBucket}/cfn-init-logs
+        step6_upload_log_files:
+          files:
+            "/tmp/upload_script.sh":
+              content: !Sub |
+                #!/bin/bash
+                aws s3 sync /var/log s3://${CfnLogsBucket}/cfn-init-logs/---INSTANCE_AZ---/---INSTANCE_ID--- --exclude "*" --include "*.log"
+              mode: "000777"
+              owner: "root"
+              group: "root"
+          commands:
+            a_update_instance_id:
+              command: "sed -i \"s|---INSTANCE_ID---|$(curl -s http://169.254.169.254/latest/meta-data/instance-id)|\" /tmp/upload_script.sh"
+            b_update_instance_az:
+              command: "sed -i \"s|---INSTANCE_AZ---|$(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone)|\" /tmp/upload_script.sh"
+            c_upload_logs:
+              cwd: "/tmp/"
+              test: "test -e /tmp/upload_script.sh"
+              command: "sh upload_script.sh"
+            d_cleanup_script:
+              cwd: "/tmp/"
+              command: "rm -rf *"
 
   # ---------------------- IAM Profile------------------------------
 
@@ -245,11 +260,6 @@ Resources:
         }
       Policies:
         - PolicyName: ecs-service
-          # "s3:CreateBucket",
-          # "s3:DeleteBucket",
-          # "s3:ListBucket",
-          # "s3:ListAllMyBuckets",
-          # "s3:GetBucketLocation",
           PolicyDocument: |
             {
               "Statement": [{
@@ -301,7 +311,11 @@ Resources:
                   "s3:AbortMultipartUpload",
                   "s3:ListMultipartUploadParts",
                   "s3:ListBucket",
-                  "s3:ListBucketMultipartUploads"
+                  "s3:ListBucketMultipartUploads",
+                  "s3:CreateBucket",
+                  "s3:DeleteBucket",
+                  "s3:ListAllMyBuckets",
+                  "s3:GetBucketLocation"
                 ],
                 "Resource": "*"
               }]
