@@ -105,25 +105,25 @@ Resources:
 
   # ------------------ FlaskApi Services-------------------------------------
 
-#  FlaskApiServicesRedis:
-#    Type: AWS::CloudFormation::Stack
-#    Properties:
-#      TemplateURL: https://s3.eu-central-1.amazonaws.com/flaskapi-cloudformation-eu-central-1/staging/cloudformation.flaskapi.redis.yml
-#      Parameters:
-#        ProjectNamePrefix: !Ref AWS::StackName
-#        TargetVpc: !GetAtt FlaskApiVpc.Outputs.FlaskApiVpcOut
-#        VpnBaseCidr: 172.16.248.0/21
-#        FlaskApiVpcId: !GetAtt FlaskApiVpc.Outputs.FlaskApiVpcOut
-#        TargetSubnets: !GetAtt FlaskApiVpc.Outputs.FlaskApiPrivateSubnetsOut
-#        ClusterNodesType: cache.t2.micro
-#        RedisSg: !GetAtt FlaskApiSG.Outputs.FlaskApiRedisSgName
-#
-#  FlaskApiServicesAthena:
-#    Type: AWS::CloudFormation::Stack
-#    Properties:
-#      TemplateURL: https://s3.eu-central-1.amazonaws.com/flaskapi-cloudformation-eu-central-1/staging/cloudformation.flaskapi.athena.yml
-#      Parameters:
-#        ProjectNamePrefix: !Ref AWS::StackName
+  FlaskApiServicesRedis:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://s3.eu-central-1.amazonaws.com/flaskapi-cloudformation-eu-central-1/staging/cloudformation.flaskapi.redis.yml
+      Parameters:
+        ProjectNamePrefix: !Ref AWS::StackName
+        TargetVpc: !GetAtt FlaskApiVpc.Outputs.FlaskApiVpcOut
+        VpnBaseCidr: 172.16.248.0/21
+        FlaskApiVpcId: !GetAtt FlaskApiVpc.Outputs.FlaskApiVpcOut
+        TargetSubnets: !GetAtt FlaskApiVpc.Outputs.FlaskApiPrivateSubnetsOut
+        ClusterNodesType: cache.t2.micro
+        RedisSg: !GetAtt FlaskApiSG.Outputs.FlaskApiRedisSgName
+
+  FlaskApiServicesAthena:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://s3.eu-central-1.amazonaws.com/flaskapi-cloudformation-eu-central-1/staging/cloudformation.flaskapi.athena.yml
+      Parameters:
+        ProjectNamePrefix: !Ref AWS::StackName
 
 #  FlaskApiServicesWeb:
 #    Type: AWS::CloudFormation::Stack
