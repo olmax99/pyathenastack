@@ -316,7 +316,11 @@ $ ssh -R 5555:<internal-flaskapi-staging-alb-endpoint>:5555 -i <bastion_key> ec2
 
 In browser use: `http://<internal-flaskapi-staging-alb-endpoint>:80/`
 
-### FAQ ECS 
+### FAQ ECS
+
+1. How to get details on the cluster node ami in use?
+
+  *`aws ssm get-parameters --names /aws/service/ecs/optimized-ami/amazon-linux-2/recommended --region ${AWS::Region}`
 
 1. What triggers a scale-up or scale-down of the cluster nodes, respectively? How can it be tested?
 
