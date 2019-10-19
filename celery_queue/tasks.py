@@ -54,11 +54,11 @@ def get_sba_permits(job_id: str, long_job_id: str, dt_called):
 
 @app.task(name='tasks.verifysourcefileexists')
 def verify_source_file_exists(job_id: str) -> Optional[dict]:
-    fac = utilities.HookFactory()
-    s3_hook = fac.create(type_hook='s3').create_client(custom_region='us-east-1')
-    # logger.info(f"Task: s3 client: {s3_hook}")
-
     sync_athena = PermitsAthena(current_uuid=job_id)
+
+    fac = utilities.HookFactory()
+    s3_hook = fac.create(type_hook='s3').create_client(custom_region=sync_athena.base_region)
+    # logger.info(f"Task: s3 client: {s3_hook}")
 
     # TODO: Move to PermitsAthena class object
     object_summary = None
@@ -103,8 +103,8 @@ def verify_target_stack_exists(stack_name: str) -> Optional[dict]:
         logger.info(f"Unknown BotoCoreError: {e}")
         cfn_summary = {'error': str(e)}
     else:
-        req_resources = ['AWS::S3::Bucket', 'AWS::Glue::Database', 'AWS::Glue::Table', 'AWS::Glue::Partition']
-        if not all(item in req_resources for item in cfn_summary['ResourceTypes']):
+        req_resources = ['AWS::Glue::Database', 'AWS::Glue::Table', 'AWS::Glue::Partition']
+        if not all(item in cfn_summary['ResourceTypes'] for item in req_resources):
             cfn_summary = {'error': 'CustomValidationError',
                            'e.response': 'Stack resources do not fulfill the requirements.'}
     finally:

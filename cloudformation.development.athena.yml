@@ -100,7 +100,7 @@ Resources:
           - Name: estate_proposed_use
             Type: string
           InputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat
-          Location: s3://flaskapi-dev-datastore-eu-central-1/permits/parquet/
+          Location: !Sub s3://${CFNDataStoreName}/permits/parquet/
           SerdeInfo:
             SerializationLibrary: org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe
 
@@ -122,7 +122,7 @@ Resources:
           - Name: day
             Type: string
           InputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat
-          Location: s3://flaskapi-dev-datastore-eu-central-1/permits/parquet/partitiontime=2019-09-06/
+          Location: !Sub s3://${CFNDataStoreName}/permits/parquet/partitiontime=2019-09-06/
           SerdeInfo:
             SerializationLibrary: org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe
 

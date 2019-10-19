@@ -78,6 +78,8 @@ Resources:
         TargetSg: !GetAtt FlaskApiSG.Outputs.FlaskApiEcsHostsSgName
         EcsKeyPair: !Ref VpnAccessKey
         CfnLogsBucket: !Ref CloudformationBucket
+      # Delay CREATE_COMPLETE signal for FlaskApi Services
+      TimeoutInMinutes: 6
 
   # NOTE: Some maintenance on the ECS cluster might require to actively shut down cluster nodes. If there
   # are tasks currently running on the target node, they need to be drained before the node termination.
@@ -125,19 +127,19 @@ Resources:
       Parameters:
         ProjectNamePrefix: !Ref AWS::StackName
 
-#  FlaskApiServicesWeb:
-#    Type: AWS::CloudFormation::Stack
-#    Properties:
-#      TemplateURL: https://s3.eu-central-1.amazonaws.com/flaskapi-cloudformation-eu-central-1/staging/cloudformation.flaskapi.web.yml
-#      Parameters:
-#        ProjectNamePrefix: !Ref AWS::StackName
-#        FlaskApiVpcId: !GetAtt FlaskApiVpc.Outputs.FlaskApiVpcOut
-#        TargetCluster: !GetAtt FlaskApiEcsCluster.Outputs.FlaskApiEcsClusterOut
-#        TargetSubnets: !GetAtt FlaskApiVpc.Outputs.FlaskApiPrivateSubnetsOut
-#        TargetAlbArn: !GetAtt FlaskApiAlb.Outputs.FlaskApiAlbNameOut
-#        EcrRepoName: !Ref EcrRepoPrefix
-#        RedisHostName: !GetAtt FlaskApiServicesRedis.Outputs.RedisHostOut
-#        VolumeBucket: !GetAtt FlaskApiServicesAthena.Outputs.DataLakeBucketNameOut
+  FlaskApiServicesWeb:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://s3.eu-central-1.amazonaws.com/flaskapi-cloudformation-eu-central-1/staging/cloudformation.flaskapi.web.yml
+      Parameters:
+        ProjectNamePrefix: !Ref AWS::StackName
+        FlaskApiVpcId: !GetAtt FlaskApiVpc.Outputs.FlaskApiVpcOut
+        TargetCluster: !GetAtt FlaskApiEcsCluster.Outputs.FlaskApiEcsClusterOut
+        TargetSubnets: !GetAtt FlaskApiVpc.Outputs.FlaskApiPrivateSubnetsOut
+        TargetAlbArn: !GetAtt FlaskApiAlb.Outputs.FlaskApiAlbNameOut
+        EcrRepoName: !Ref EcrRepoPrefix
+        RedisHostName: !GetAtt FlaskApiServicesRedis.Outputs.RedisHostOut
+        VolumeBucket: !GetAtt FlaskApiServicesAthena.Outputs.DataLakeBucketNameOut
 
 
   # ------------------- Templates Bucket----------------------------
@@ -161,3 +163,26 @@ Resources:
   #     RestrictPublicBuckets: True
   #   VersioningConfiguration:
   #     Status: Enabled
+
+  # ------------------- Data Store Bucket---------------------------
+  #  Resources section defines metadata for the Data Catalog
+  #  Resources:
+  #   CFNDataStore:
+  #     Type: AWS::S3::Bucket
+  #     Properties:
+  #       AccessControl: Private
+  #       BucketEncryption:
+  #         ServerSideEncryptionConfiguration:
+  #           - ServerSideEncryptionByDefault:
+  #               SSEAlgorithm: AES256
+  #       BucketName: !Ref CFNDataStoreName
+  #       PublicAccessBlockConfiguration:
+  #         BlockPublicAcls: True
+  #         BlockPublicPolicy: True
+  #         IgnorePublicAcls: True
+  #         RestrictPublicBuckets: True
+  #         # advanced list features
+  #         InventoryConfigurations:
+  #          - InventoryConfiguration
+  #         LifecycleConfiguration:
+  #           LifecycleConfiguration

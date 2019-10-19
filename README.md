@@ -251,7 +251,52 @@ $ docker-compose -f docker-compose.testing.yml down
 
 ## Quickstart Production
 
-### 1. Create Elastic Container Registry
+Use [https://dbeaver.io/](https://dbeaver.io/) for directly connecting to the Athena Database.
+
+Launch [https://github.com/olmax99/serverlessbaseapi](https://github.com/olmax99/serverlessbaseapi) for 
+the Demo endpoint as external data source. 
+
+### 1. Create Project Base Buckets
+
+**NOTE:** Two persistent Buckets are needed for this project to run: 
+  1. `flaskapi-cloudformation-eu-central-1` holds all templates and container instance logs
+  2. `flaskapi-staging-datastore-eu-central-1` will be connected to the AWS Glue Table and 
+  contains the final partitioned data. Latter will then be read in by Athena.
+
+Even after you clean up a project, you want these buckets to persist. Therefore they are NOT
+part of the CloudFormation templates. Create them manually.
+
+### 2. Prepare Task Definition
+
+**NOTE**: Currently, Ecs Secrets are NOT implemented. The target endpoint of the loading data
+worker job is hard coded. Replace it with your current endpoint parameters.
+
+In `cloudformation/staging/services/cloudformation.flaskapi.web.yml` change the following lines:
+  - `PERMITS_URL`
+  - `PERMITS_KEY`
+
+```
+ContainerDefinitions:
+  - Name: worker-flaskapi
+    Image: !Sub ${EcrRepoName}/celery-flaskapi
+    # Soft limit, which can be escaped
+    MemoryReservation: 256
+    # TODO: Implement ECS secrets
+    Environment:
+        - Name: 'CELERY_BROKER_URL'
+        Value: !Sub 'redis://:@${RedisHostName}:6379/0'
+        - Name: 'CELERY_RESULT_BACKEND'
+        Value: !Sub 'redis://:@${RedisHostName}:6379/0'
+        - Name: 'C_FORCE_ROOT'
+        Value: 'true'
+        - Name: 'PERMITS_URL'
+        Value: 'https://dk0uwspefe.execute-api.eu-central-1.amazonaws.com/dev/permits/all-permits-json'
+        - Name: 'PERMITS_KEY'
+        Value: 'ReASbdH1cI6H1K0pO3DqW4ZehZHwD0vE92uF3Flt'
+
+```
+
+### 3. Create Elastic Container Registry
 
 #### a. Get an ECR access token and create ECR repositories
 
@@ -266,10 +311,11 @@ $ make ecr
 
 **NOTE:** The local images should exist after having build the project for development.
 
+**NOTE:** Currently, there is no automated CI pipeline. For this reason you need to rebuild
+and push the images after every code change manually.
+
 ```sh
 $ export ECR_REPO_PREFIX=<your ECR label>
-
-
 
 # Tag Images with the ECR URL prefix
 $ make tag
@@ -279,7 +325,7 @@ $ make push
 
 ```
 
-### 1. Launch ECS Cluster
+### 4. Launch ECS Cluster
 
 #### a. Create deployment bucket and upload files
 
@@ -308,13 +354,15 @@ $ make cluster
 # Activate ovpn connection throught network settings
 $ make vpn
 
-# Create ssh remote forwarding tunnels and ensure that vpn conn is activated
-$ ssh -R 5000:<internal-flaskapi-staging-alb-endpoint>:5000 -i <bastion_key> ec2-user@<private_bastion_ip> &
-$ ssh -R 5555:<internal-flaskapi-staging-alb-endpoint>:5555 -i <bastion_key> ec2-user@<private_bastion_ip> &
-
 ```
 
-In browser use: `http://<internal-flaskapi-staging-alb-endpoint>:80/`
+In browser use: 
+  - `http://<internal-flaskapi-staging-alb-endpoint>:5000/`
+  - `http://<internal-flaskapi-staging-alb-endpoint>:5555/`
+
+**NOTE:** Target location in `flaskapi--rexray-data-vol` needs to be fixed!! Parquet files need
+to be located inside the `data folder` before they can be processed into the data store. This would
+need to be configured in the rexray configuration inside the container instance `LaunchConfiguration`.
 
 ### FAQ ECS
 

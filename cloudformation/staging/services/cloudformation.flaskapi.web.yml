@@ -158,10 +158,10 @@ Resources:
       TaskDefinition: !Ref FlaskApiWorker
       LaunchType: EC2
       ServiceName: worker-flaskapi-svc
-      NetworkConfiguration:
-        AwsvpcConfiguration:
-          AssignPublicIp: 'DISABLED'
-          Subnets: !Ref TargetSubnets
+#      NetworkConfiguration:
+#        AwsvpcConfiguration:
+#          AssignPublicIp: 'DISABLED'
+#          Subnets: !Ref TargetSubnets
 
   # ---------------------- Nginx-Flask-Flower------------------------------
 
@@ -259,6 +259,7 @@ Resources:
           Image: !Sub ${EcrRepoName}/celery-flaskapi
           # Soft limit, which can be escaped
           MemoryReservation: 256
+          # TODO: Implement ECS secrets
           Environment:
             - Name: 'CELERY_BROKER_URL'
               Value: !Sub 'redis://:@${RedisHostName}:6379/0'
@@ -266,9 +267,15 @@ Resources:
               Value: !Sub 'redis://:@${RedisHostName}:6379/0'
             - Name: 'C_FORCE_ROOT'
               Value: 'true'
+            - Name: 'RUN_MODE'
+              Value: 'PRODUCTION'
+            - Name: 'PERMITS_URL'
+              Value: 'https://dk0uwspefe.execute-api.eu-central-1.amazonaws.com/dev/permits/all-permits-json'
+            - Name: 'PERMITS_KEY'
+              Value: 'ReASbdH1cI6H1K0pO3DqW4ZehZHwD0vE92uF3Flt'
           # TODO: Create shared volume with celery worker
           MountPoints:
-            - SourceVolume: !Sub ${ProjectNamePrefix}-rexray-vol
+            - SourceVolume: !Ref VolumeBucket
               ContainerPath: /queue/data
           EntryPoint:
             - 'celery'
@@ -284,17 +291,15 @@ Resources:
               awslogs-group: !Ref FlaskApiLogGroupWeb
               awslogs-stream-prefix: !Sub ${ProjectNamePrefix}-worker
       Volumes:
-        - Name: !Sub ${ProjectNamePrefix}-rexray-data-vol
+        - Name: !Ref VolumeBucket
           # Empty Host parameter -> data may not persist on host
           # Host: null
           DockerVolumeConfiguration:
             # Automatically create if not exist
             Autoprovision: false
             Driver: 'rexray/s3fs:0.11.4'
-            # DriverOpts:
-            #   - ???
             Scope: shared
-      NetworkMode: 'awsvpc'
+      NetworkMode: 'bridge'
       ExecutionRoleArn: !Ref DefaultServiceExecutionRole
 
   # ---------------------- Service Roles----------------------------------

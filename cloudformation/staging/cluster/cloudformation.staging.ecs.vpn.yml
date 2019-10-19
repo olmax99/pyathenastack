@@ -383,16 +383,16 @@ Resources:
   # ---------------- Lambda------------------------------------
 
   cleanupBucketOnDelete:
-    DependsOn: cleanupS3OnDeleteLambda
+    DependsOn: cleanupS3CertsOnDeleteLambda
     Type: Custom::cleanupbucket
     Properties:
       ServiceToken:
         Fn::GetAtt:
-          - "cleanupS3OnDeleteLambda"
+          - "cleanupS3CertsOnDeleteLambda"
           - "Arn"
       BucketName: !Ref FlaskApiOpenVPNCertsBucket
     
-  cleanupS3OnDeleteLambda:
+  cleanupS3CertsOnDeleteLambda:
     # Removes all objects from FlaskApiOpenVPNCertsBucket upon cfn Delete
     DependsOn: FlaskApiOpenVPNCertsBucket
     Type: "AWS::Lambda::Function"

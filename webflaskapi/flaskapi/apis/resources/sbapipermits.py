@@ -69,7 +69,7 @@ class PermitsStateCheck(Resource):
 
 @ns.route('/to_data_store/<job_id>/<stack_name>')
 @ns.doc(params={'job_id': 'Unique job uuid - file needs to exist.',
-                'stack_name': 'Athena stack containing S3 data sore, Glue db, table, and partition'})
+                'stack_name': 'Athena stack containing target S3 data store location, Glue db, table, and partition'})
 class PermitsToDataStore(Resource):
     def post(self, job_id, stack_name):
         """

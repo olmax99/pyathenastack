@@ -329,7 +329,15 @@ Resources:
                   "s3:CreateBucket",
                   "s3:DeleteBucket",
                   "s3:ListAllMyBuckets",
-                  "s3:GetBucketLocation"
+                  "s3:GetBucketLocation",
+                  "cloudformation:DescribeStacks",
+                  "cloudformation:DescribeStackEvents",
+                  "cloudformation:DescribeStackResource",
+                  "cloudformation:DescribeStackResources",
+                  "cloudformation:GetTemplate",
+                  "cloudformation:GetTemplateSummary",
+                  "cloudformation:List*",
+                  "glue:*"
                 ],
                 "Resource": "*"
               }]

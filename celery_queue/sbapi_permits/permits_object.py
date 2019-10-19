@@ -7,6 +7,8 @@ from celery.utils.log import get_task_logger
 
 logger = get_task_logger(__name__)
 
+RUN_MODE = os.getenv('RUN_MODE', 'DEVELOPMENT')
+
 
 class Error(Exception):
     """Base class for exceptions in this module"""
@@ -33,13 +35,25 @@ class PermitsAthena(object):
                  current_uuid,
                  partitiontime=None,
                  s3client=None,
-                 # -------------------------DEV ENVIRONMENT ---------------------------
-                 # TODO: Basebucket should be picked up from enviroment (e.g. dev)
-                 base_bucket='flaskapi-dev-rexray-data',
-                 base_data_dir='/queue/data/',
-                 base_data_store='flaskapi-dev-datastore-eu-central-1/permits/parquet',
-                 permits_database='dev_flaskapi_01',
-                 permits_table='dev_permits_01'):
+                 base_bucket=None,
+                 base_data_store=None,
+                 permits_database=None,
+                 permits_table=None,
+                 base_region=None,
+                 base_data_dir='/queue/data/'
+                 ):
+        if RUN_MODE == 'DEVELOPMENT':
+            base_bucket = 'flaskapi-dev-rexray-data'
+            base_data_store = 'flaskapi-dev-datastore-eu-central-1/permits/parquet'
+            permits_database = 'dev_flaskapi_01'
+            permits_table = 'dev_permits_01'
+            base_region = 'us-east-1'
+        else:
+            base_bucket = 'flaskapi-staging-rexray-data-vol'
+            base_data_store = 'flaskapi-staging-datastore-eu-central-1/permits/parquet'
+            permits_database = 'staging_flaskapi_01'
+            permits_table = 'staging_permits_01'
+            base_region = 'eu-central-1'
 
         self.job_uuid = current_uuid
         self._partitiontime = partitiontime
@@ -48,6 +62,7 @@ class PermitsAthena(object):
         self.base_bucket = base_bucket
         self.base_data_dir = base_data_dir
         self.base_data_store = base_data_store
+        self.base_region = base_region
 
         self.permits_database = permits_database
         self.permits_table = permits_table

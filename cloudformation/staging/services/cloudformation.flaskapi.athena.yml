@@ -9,6 +9,25 @@ Parameters:
     Description: Used for ecs resources and consistent naming
     Type: String
 
+  CFNDatabaseName:
+    Description: Name of container for Athena tables
+    Type: String
+    # Athena only supports alphanumeric and underscore characters.
+    AllowedPattern: "^[a-zA-Z0-9]+[a-zA-Z0-9_]+[a-zA-Z0-9]+$"
+    Default: staging_flaskapi_01
+
+  CFNTableName01:
+    Description: Name of dev table permits
+    Type: String
+    AllowedPattern: "^[a-zA-Z0-9]+[a-zA-Z0-9_]+[a-zA-Z0-9]+$"
+    Default: staging_permits_01
+
+  CFNDataStoreName:
+    Description: Name of Data Store as source for Athena
+    Type: String
+    AllowedPattern: "^[a-zA-Z0-9]+[a-zA-Z0-9-]+[a-zA-Z0-9]+$"
+    Default: flaskapi-staging-datastore-eu-central-1
+
 Resources:
 
  FlaskApiDataLakeBucket:
@@ -26,6 +45,222 @@ Resources:
        BlockPublicPolicy: True
        IgnorePublicAcls: True
        RestrictPublicBuckets: True
+
+ # Create an AWS Glue database and table definition
+ CFNDatabaseFlaskapi:
+   Type: AWS::Glue::Database
+   Properties:
+     CatalogId: !Ref AWS::AccountId
+     DatabaseInput:
+       # The name of the database is defined in the Parameters section above
+       Name: !Ref CFNDatabaseName
+       Description: Database to hold tables for permits data
+       # LocationUri seems to be optional - locations are defined in tables
+       # Parameters: Leave AWS database parameters blank
+
+ CFNTablePermits:
+   DependsOn: CFNDatabaseFlaskapi
+   Type: AWS::Glue::Table
+   Properties:
+     CatalogId: !Ref AWS::AccountId
+     DatabaseName: !Ref CFNDatabaseName
+     TableInput:
+       Name: !Ref CFNTableName01
+       Description: Dataset containing applications for SF Housing Permits
+       # DateAdded: !Ref CreationDate
+       TableType: EXTERNAL_TABLE
+       # TODO: Add compression
+       Parameters: {
+         "classification": "parquet"
+       }
+       PartitionKeys:
+         # Data is partitioned by day of upload, NOTE: ^_ will be ignored
+         # TODO: try partitiontime_
+         # s3://flaskapi-dev-datastore-eu-central-1/permits/parquet/partitiontime=2019-09-06
+         - Name: partitiontime
+           Type: string
+       StorageDescriptor:
+         OutputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat
+         Columns:
+           - Name: application_number
+             Type: string
+           - Name: permit_record_id
+             Type: smallint
+           - Name: estate_address
+             Type: string
+           - Name: permit_description
+             Type: string
+           - Name: permit_est_cost
+             Type: float
+           - Name: permit_expiration_date
+             Type: date
+           - Name: permit_file_date
+             Type: date
+           - Name: revised_cost
+             Type: float
+           - Name: application_status
+             Type: string
+           - Name: status_date
+             Type: string
+           - Name: estate_existing_use
+             Type: string
+           - Name: estate_proposed_use
+             Type: string
+         InputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat
+         Location: !Sub s3://${CFNDataStoreName}/permits/parquet/
+         SerdeInfo:
+           SerializationLibrary: org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe
+
+ # Partition 1
+ # Create an AWS Glue partition
+ CFNPartitionDate20191019:
+   DependsOn: CFNTablePermits
+   Type: AWS::Glue::Partition
+   Properties:
+     CatalogId: !Ref AWS::AccountId
+     DatabaseName: !Ref CFNDatabaseName
+     TableName: !Ref CFNTableName01
+     PartitionInput:
+       Values:
+         - "2019-10-19"
+       StorageDescriptor:
+         OutputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat
+         Columns:
+           - Name: day
+             Type: string
+         InputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat
+         Location: !Sub s3://${CFNDataStoreName}/permits/parquet/partitiontime=2019-10-19/
+         SerdeInfo:
+           SerializationLibrary: org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe
+
+ # ---------------- Lambda------------------------------------
+
+ cleanupBucketOnDelete:
+   DependsOn: cleanupS3DataLakeOnDeleteLambda
+   Type: Custom::cleanupbucket
+   Properties:
+     ServiceToken:
+       Fn::GetAtt:
+         - "cleanupS3DataLakeOnDeleteLambda"
+         - "Arn"
+     BucketName: !Ref FlaskApiDataLakeBucket
+
+ cleanupS3DataLakeOnDeleteLambda:
+   # Removes all objects from FlaskApiOpenVPNCertsBucket upon cfn Delete
+   DependsOn: FlaskApiDataLakeBucket
+   Type: "AWS::Lambda::Function"
+   Properties:
+     Code:
+       ZipFile: !Sub |
+         import boto3
+         import json
+         import logging
+         # module cfnresponse does not exist for python3.7
+         # import cfnresponse
+         # Will yield a warning, but is currently the only solution for python3.7
+         # since inline code cannot import third party packages
+         from botocore.vendored import requests
+         from botocore.exceptions import ClientError
+
+         logger = logging.getLogger(__name__)
+
+         def setup(level='DEBUG', boto_level=None, **kwargs):
+             logging.root.setLevel(level)
+
+             if not boto_level:
+                 boto_level = level
+
+             logging.getLogger('boto').setLevel(boto_level)
+             logging.getLogger('boto3').setLevel(boto_level)
+             logging.getLogger('botocore').setLevel(boto_level)
+             logging.getLogger('urllib3').setLevel(boto_level)
+
+         try:
+             setup('DEBUG', formatter_cls=None, boto_level='ERROR')
+         except Exception as e:
+             logger.error(e, exc_info=True)
+
+         def clean_up_bucket(target_bucket):
+             logger.info(f"Clean content of bucket {target_bucket}.")
+             s3_resource = boto3.resource('s3')
+             try:
+                 bucket_response = s3_resource.Bucket(target_bucket).load()
+             except ClientError as e:
+                 logger.info(f"s3:://{target_bucket} not found. {e}")
+                 return
+             else:
+                 bucket_obj = s3_resource.Bucket(target_bucket)
+                 bucket_obj.objects.all().delete()
+
+         def handler(event, context):
+             # helper(event, context)
+
+             response_data = {}
+             # NOTE: The status value sent by the custom resource provider must be either SUCCESS or FAILED!!
+             try:
+                 bucket = event['ResourceProperties']['BucketName']
+                 if event['RequestType'] == 'Delete':
+                     clean_up_bucket(bucket)
+                 if event['RequestType'] == 'Update':
+                     logger.info(f"custom::cleanupbucket update. Target bucket: {bucket}")
+                 if event['RequestType'] == 'Create':
+                     logger.info(f"custom::cleanupbucket create. Target bucket: {bucket}")
+                 send_response_cfn(event, context, "SUCCESS")
+             except Exception as e:
+                 logger.info(str(e))
+                 send_response_cfn(event, context, "FAILED")
+
+         def send_response_cfn(event, context, response_status):
+             response_body = {'Status': response_status,
+                              'Reason': 'Log stream name: ' + context.log_stream_name,
+                              'PhysicalResourceId': context.log_stream_name,
+                              'StackId': event['StackId'],
+                              'RequestId': event['RequestId'],
+                              'LogicalResourceId': event['LogicalResourceId'],
+                              'Data': json.loads("{}")}
+             # Sends the response signal to the respective custom resource request
+             requests.put(event['ResponseURL'], data=json.dumps(response_body))
+     Description: cleanup Bucket on Delete Lambda Lambda function.
+     Handler: index.handler
+     Role: !GetAtt CleanupS3ExecutionRole.Arn
+     Runtime: python3.7
+     Timeout: 100
+
+ CleanupS3ExecutionRole:
+   Type: AWS::IAM::Role
+   Properties:
+     AssumeRolePolicyDocument:
+       Version: '2012-10-17'
+       Statement:
+         - Effect: Allow
+           Principal:
+             Service:
+               - lambda.amazonaws.com
+           Action:
+             - sts:AssumeRole
+     Path: "/"
+
+ CleanupS3ExecutionPolicy:
+   DependsOn:
+     - CleanupS3ExecutionRole
+   Type: AWS::IAM::Policy
+   Properties:
+     PolicyName: DeleteS3BucketLogsRolePolicy
+     Roles:
+       - Ref: CleanupS3ExecutionRole
+     PolicyDocument:
+       Version: '2012-10-17'
+       Statement:
+         - Effect: Allow
+           Action:
+             - logs:*
+           Resource:
+             - arn:aws:logs:*:*:*
+         - Effect: Allow
+           Action:
+             - s3:*
+           Resource:
+             - "*"
 
 Outputs:
 
