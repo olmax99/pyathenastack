@@ -33,7 +33,7 @@ naming of packages using `async`, which is now a keyword in Python.
 Temporarily downgraded to `3.6.9` until solved.
 
 
-## Quickstart Development
+## I. Quickstart Development
 
 ---
 
@@ -148,8 +148,7 @@ $ docker run -ti -v flaskapi-dev-rexray-data:/data nginx:latest mount | grep "/d
 
 #### 1. Set the applications run mode
 
-There are two ways of running the app in development mode. By default 
-the `web` container will run in sleep, and flask is invoked in debug.
+There are two ways of running the app in development mode.
 
 1. If you want to run the Flask app directly from nginx/uwsgi, comment 
 out the line starting with `command: ...` in `dockerflaskapi/docker-compose.development.yml`:
@@ -188,11 +187,11 @@ $ docker logs -f dockerflaskapi_worker.flaskapi_1
 
 ```
 
-**NOTE:** Changes to the code base of the worker will always need complete restart.
+**NOTE:** Changes to the code base of the worker will always need a full restart.
 
 ---
 
-1. The Swagger Api documentation can be accessed in your browser at `localhost:80`.
+1. The Swagger Api documentation can be accessed in your browser at `localhost:5000`.
 2. Flower can be accessed on `localhost:5555`
 
 #### 4. Create a development table in AWS Athena
@@ -205,7 +204,8 @@ $ aws cloudformation create-stack --stack-name flaskapi-dev-athena-01 \
 
 ```
 
-Verify that the partition can be queried:
+Using DBeaver (or any Athena compatible database manager for that matter), 
+verify that the partition can be queried:
 
 ```sql
 SELECT application_number, permit_record_id
@@ -224,7 +224,7 @@ $ aws cloudformation delete-stack --stack-name dev-flaskapi-01
 ```
 
 
-## Running the tests
+## II. Running the tests
 
 TravisCI is preconfigured to run automated tests on:
 
@@ -249,7 +249,7 @@ $ docker-compose -f docker-compose.testing.yml down
 
 ```
 
-## Quickstart Production
+## III. Quickstart Production
 
 Use [https://dbeaver.io/](https://dbeaver.io/) for directly connecting to the Athena Database.
 
@@ -386,7 +386,7 @@ need to be configured in the rexray configuration inside the container instance 
   other than unhealthy nodes will be replaced by the autoscaling group.
 
 
-## General Instructions
+## IV. General Instructions
 
 ### Changing The Project Name
 
