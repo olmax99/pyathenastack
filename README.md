@@ -10,10 +10,6 @@ with a light-weight DWH system utilizing AWS Athena.
 
 ![Graph](images/dockerflaskapi.png)
 
-- Secure data in AWS Athena [https://docs.aws.amazon.com/athena/latest/ug/security.html](https://docs.aws.amazon.com/athena/latest/ug/security.html)
-- Use RexRay with ECS [https://aws.amazon.com/blogs/compute/amazon-ecs-and-docker-volume-drivers-amazon-ebs/](https://aws.amazon.com/blogs/compute/amazon-ecs-and-docker-volume-drivers-amazon-ebs/)
-- Integrate JWT with with Flask + schema verfication with endpoints
-
 ## Prerequisites
 
 For local development, the following components are required on the local machine:
@@ -438,6 +434,17 @@ $ make vpn
 $ ssh -A -i /path/to/<VPN Access Key>.pem ec2-user@<Private IP>
 
 ```
+
+## Where to go from here?
+
+- Secure data in AWS Athena [https://docs.aws.amazon.com/athena/latest/ug/security.html](https://docs.aws.amazon.com/athena/latest/ug/security.html)
+- Use RexRay with ECS [https://aws.amazon.com/blogs/compute/amazon-ecs-and-docker-volume-drivers-amazon-ebs/](https://aws.amazon.com/blogs/compute/amazon-ecs-and-docker-volume-drivers-amazon-ebs/) `[DONE]`
+- Integrate JWT with with Flask + schema verfication with endpoints [https://flask-jwt-extended.readthedocs.io/en/stable/](https://flask-jwt-extended.readthedocs.io/en/stable/)
+- Implement ECS secrets [https://docs.aws.amazon.com/AmazonECS/latest/developerguide/specifying-sensitive-data-tutorial.html](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/specifying-sensitive-data-tutorial.html)
+- Run a very large dataset through the infrastructure: [https://data.cityofnewyork.us/Transportation/2018-Yellow-Taxi-Trip-Data/t29m-gskq](https://data.cityofnewyork.us/Transportation/2018-Yellow-Taxi-Trip-Data/t29m-gskq)
+- Implement an automated CI/CD with [CodeBuild](https://docs.aws.amazon.com/codebuild/latest/userguide/getting-started.html) and [CodePipeline](https://docs.aws.amazon.com/codepipeline/latest/userguide/tutorials-four-stage-pipeline.html)
+- Integrate with BI Platforms such as [Chartio](https://chartio.com/docs/quick-start/), [Tableau](https://www.tableau.com/about/blog/2017/5/connect-your-s3-data-amazon-athena-connector-tableau-103-71105), [KNIME](https://www.knime.com/knime-software-on-amazon-web-services)
+- Replace EC2 container instances with a logic to integrate Spot instances
 
 
 ## Author
