@@ -1,4 +1,4 @@
-# Docker Flask API [![Build Status](https://travis-ci.org//olmax99/dockerflaskapi.png)](https://travis-ci.org//olmax99/dockerflaskapi)
+# Python Athena Stack [![Build Status](https://travis-ci.org//olmax99/dockerflaskapi.png)](https://travis-ci.org//olmax99/dockerflaskapi)
 
 This is a web API project with a capability of distributed background 
 workers for reading and storing larger datasets to AWS S3. It is combined 
