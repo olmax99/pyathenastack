@@ -33,7 +33,7 @@ Parameters:
     Description: Address of the Redis master node
     Type: String
 
-  VolumeBucket:
+  S3fsVolumeBucket:
     Description: Rexray data volumes
     Type: String
 
@@ -195,7 +195,7 @@ Resources:
               Value: !Sub 'redis://:@${RedisHostName}:6379/0'
           # Depends on existing shared volume with celery worker
           MountPoints:
-            - SourceVolume: !Ref VolumeBucket
+            - SourceVolume: !Ref S3fsVolumeBucket
               ContainerPath: /app/data
           PortMappings:
             - ContainerPort: 5000
@@ -232,12 +232,12 @@ Resources:
               awslogs-group: !Ref FlaskApiLogGroupWeb
               awslogs-stream-prefix: !Sub ${ProjectNamePrefix}-flower
       Volumes:
-        - Name: !Ref VolumeBucket
+        - Name: !Ref S3fsVolumeBucket
           # Empty Host parameter -> data may not persist on host
           # Host: null
           DockerVolumeConfiguration:
             # Needs to exist prior to task creation
-            Autoprovision: false
+            Autoprovision: true
             Driver: 'rexray/s3fs:0.11.4'
             Scope: shared
       NetworkMode: 'bridge'
@@ -273,9 +273,8 @@ Resources:
               Value: 'https://dk0uwspefe.execute-api.eu-central-1.amazonaws.com/dev/permits/all-permits-json'
             - Name: 'PERMITS_KEY'
               Value: 'ReASbdH1cI6H1K0pO3DqW4ZehZHwD0vE92uF3Flt'
-          # TODO: Create shared volume with celery worker
           MountPoints:
-            - SourceVolume: !Ref VolumeBucket
+            - SourceVolume: !Ref S3fsVolumeBucket
               ContainerPath: /queue/data
           EntryPoint:
             - 'celery'
@@ -291,12 +290,12 @@ Resources:
               awslogs-group: !Ref FlaskApiLogGroupWeb
               awslogs-stream-prefix: !Sub ${ProjectNamePrefix}-worker
       Volumes:
-        - Name: !Ref VolumeBucket
+        - Name: !Ref S3fsVolumeBucket
           # Empty Host parameter -> data may not persist on host
           # Host: null
           DockerVolumeConfiguration:
             # Automatically create if not exist
-            Autoprovision: false
+            Autoprovision: true
             Driver: 'rexray/s3fs:0.11.4'
             Scope: shared
       NetworkMode: 'bridge'

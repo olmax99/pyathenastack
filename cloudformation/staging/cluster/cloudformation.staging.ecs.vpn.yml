@@ -54,6 +54,7 @@ Resources:
       AllocationId: !GetAtt FlaskApiEIP.AllocationId
       NetworkInterfaceId: !Ref FlaskApiOpenVPNNetworkInterface
 
+  # TODO: Move to security groups template
   FlaskApiOpenVPNInstanceSG:
     Type: AWS::EC2::SecurityGroup
     Properties:

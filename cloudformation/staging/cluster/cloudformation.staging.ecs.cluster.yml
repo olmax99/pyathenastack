@@ -226,6 +226,8 @@ Resources:
             a_install_rexray:
               command: !Sub |
                 docker plugin install rexray/s3fs:0.11.4 S3FS_REGION=${AWS::Region} S3FS_OPTIONS="allow_other,iam_role=auto,umask=000" LIBSTORAGE_INTEGRATION_VOLUME_OPERATIONS_MOUNT_ROOTPATH=/ --grant-all-permissions
+            # b_registry_login:
+            #   command: $(aws ecr get-login --no-include-email --region ${AWS_REGION})
         step7_upload_log_files:
           files:
             "/tmp/upload_script.sh":

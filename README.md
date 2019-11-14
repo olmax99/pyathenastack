@@ -247,10 +247,11 @@ $ docker-compose -f docker-compose.testing.yml down
 
 ## III. Quickstart Production
 
-Use [https://dbeaver.io/](https://dbeaver.io/) for directly connecting to the Athena Database.
+Use [https://dbeaver.io/](https://dbeaver.io/) for directly connecting to the Athena Database. Athena
+NamedQueries can be added via CloudFormation as in [https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-athena-namedquery.html](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-athena-namedquery.html).
 
 Launch [https://github.com/olmax99/serverlessbaseapi](https://github.com/olmax99/serverlessbaseapi) for 
-the Demo endpoint as external data source. 
+the Demo endpoint as an external data source. 
 
 ### 1. Create Project Base Buckets
 

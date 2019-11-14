@@ -29,7 +29,28 @@ Parameters:
     Description: Templates and logs
     Type: String
 
+  RexrayBucket:
+    Description: S3fs rexray volume
+    Type: String
+
 Resources:
+
+#  RexrayDataLake:
+#    Type: AWS::S3::Bucket
+#    Description: Data lake for unprocessed workloads from rexray volumes
+#    Properties:
+#      # NOTE: Without BucketName Task Volume mount will fail!!!
+#      BucketName: !Sub ${AWS::StackName}-rexray-data-lake-${AWS::Region}
+#      AccessControl: Private
+#      BucketEncryption:
+#        ServerSideEncryptionConfiguration:
+#          - ServerSideEncryptionByDefault:
+#              SSEAlgorithm: AES256
+#      PublicAccessBlockConfiguration:
+#        BlockPublicAcls: True
+#        BlockPublicPolicy: True
+#        IgnorePublicAcls: True
+#        RestrictPublicBuckets: True
 
   # ------------------ Master Deployment Cluster----------------------------
 
@@ -126,6 +147,7 @@ Resources:
       TemplateURL: https://s3.eu-central-1.amazonaws.com/flaskapi-cloudformation-eu-central-1/staging/cloudformation.flaskapi.athena.yml
       Parameters:
         ProjectNamePrefix: !Ref AWS::StackName
+#        S3fsVolumeBucket: !Ref RexrayDataLake
 
   FlaskApiServicesWeb:
     Type: AWS::CloudFormation::Stack
@@ -139,7 +161,7 @@ Resources:
         TargetAlbArn: !GetAtt FlaskApiAlb.Outputs.FlaskApiAlbNameOut
         EcrRepoName: !Ref EcrRepoPrefix
         RedisHostName: !GetAtt FlaskApiServicesRedis.Outputs.RedisHostOut
-        VolumeBucket: !GetAtt FlaskApiServicesAthena.Outputs.DataLakeBucketNameOut
+        S3fsVolumeBucket: !Ref RexrayBucket
 
 
   # ------------------- Templates Bucket----------------------------
@@ -167,7 +189,7 @@ Resources:
   # ------------------- Data Store Bucket---------------------------
   #  Resources section defines metadata for the Data Catalog
   #  Resources:
-  #   CFNDataStore:
+  #   AthenaDataStore:
   #     Type: AWS::S3::Bucket
   #     Properties:
   #       AccessControl: Private

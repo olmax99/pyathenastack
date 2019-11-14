@@ -25,6 +25,7 @@ Resources:
     Properties:
       GroupDescription: SG for all cluster resources including tasks, services, and EC2 nodes
       VpcId: !Ref TargetVpc
+      # NOTE: Ingress only from internal network IPs
       SecurityGroupIngress:
         # -1 stands for ALL
         - IpProtocol: -1
