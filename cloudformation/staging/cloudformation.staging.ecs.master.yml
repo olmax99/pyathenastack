@@ -57,7 +57,7 @@ Resources:
   FlaskApiVpc:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: https://s3.eu-central-1.amazonaws.com/flaskapi-cloudformation-eu-central-1/staging/cloudformation.staging.ecs.vpc.yml
+      TemplateURL: !Sub https://s3.eu-central-1.amazonaws.com/${CloudformationBucket}/staging/cloudformation.staging.ecs.vpc.yml
       Parameters:
         ProjectNamePrefix: !Ref AWS::StackName
         VpcCidrBase: 172.16.248.0/21
@@ -69,7 +69,7 @@ Resources:
   FlaskApiSG:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: https://s3.eu-central-1.amazonaws.com/flaskapi-cloudformation-eu-central-1/staging/cloudformation.staging.ecs.sg.yml
+      TemplateURL: !Sub https://s3.eu-central-1.amazonaws.com/${CloudformationBucket}/staging/cloudformation.staging.ecs.sg.yml
       Parameters:
         ProjectNamePrefix: !Ref AWS::StackName
         TargetVpc: !GetAtt FlaskApiVpc.Outputs.FlaskApiVpcOut
@@ -78,7 +78,7 @@ Resources:
   FlaskApiAlb:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: https://s3.eu-central-1.amazonaws.com/flaskapi-cloudformation-eu-central-1/staging/cloudformation.staging.ecs.alb.yml
+      TemplateURL: !Sub https://s3.eu-central-1.amazonaws.com/${CloudformationBucket}/staging/cloudformation.staging.ecs.alb.yml
       Parameters:
         ProjectNamePrefix: !Ref AWS::StackName
         TargetVpc: !GetAtt FlaskApiVpc.Outputs.FlaskApiVpcOut
@@ -88,7 +88,7 @@ Resources:
   FlaskApiEcsCluster:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: https://s3.eu-central-1.amazonaws.com/flaskapi-cloudformation-eu-central-1/staging/cloudformation.staging.ecs.cluster.yml
+      TemplateURL: !Sub https://s3.eu-central-1.amazonaws.com/${CloudformationBucket}/staging/cloudformation.staging.ecs.cluster.yml
       Parameters:
         ProjectNamePrefix: !Ref AWS::StackName
         ClusterAmiTypes: t2.micro
@@ -99,7 +99,7 @@ Resources:
         TargetSg: !GetAtt FlaskApiSG.Outputs.FlaskApiEcsHostsSgName
         EcsKeyPair: !Ref VpnAccessKey
         CfnLogsBucket: !Ref CloudformationBucket
-      # Delay CREATE_COMPLETE signal for FlaskApi Services
+      # Delay Cluster CREATE_COMPLETE signal for ECS Services - regular time: ~4.5min == delay: ~2min
       TimeoutInMinutes: 6
 
   # NOTE: Some maintenance on the ECS cluster might require to actively shut down cluster nodes. If there
@@ -107,7 +107,7 @@ Resources:
   FlaskApiMaintenanceHook:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: https://s3.eu-central-1.amazonaws.com/flaskapi-cloudformation-eu-central-1/staging/cloudformation.staging.ecs.hook.yml
+      TemplateURL: !Sub https://s3.eu-central-1.amazonaws.com/${CloudformationBucket}/staging/cloudformation.staging.ecs.hook.yml
       Parameters:
         ProjectNamePrefix: !Ref AWS::StackName
         TargetCluster: !GetAtt FlaskApiEcsCluster.Outputs.FlaskApiEcsClusterOut
@@ -119,8 +119,9 @@ Resources:
   FlaskApiVpn:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: https://s3.eu-central-1.amazonaws.com/flaskapi-cloudformation-eu-central-1/staging/cloudformation.staging.ecs.vpn.yml
+      TemplateURL: !Sub https://s3.eu-central-1.amazonaws.com/${CloudformationBucket}/staging/cloudformation.staging.ecs.vpn.yml
       Parameters:
+        ProjectNamePrefix: !Ref AWS::StackName
         EC2VPNInstanceKeyName: !Ref VpnAccessKey
         LocalConnectionIP: !Ref LocalBaseIp
         TargetVpc: !GetAtt FlaskApiVpc.Outputs.FlaskApiVpcOut
@@ -131,7 +132,7 @@ Resources:
   FlaskApiServicesRedis:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: https://s3.eu-central-1.amazonaws.com/flaskapi-cloudformation-eu-central-1/staging/cloudformation.flaskapi.redis.yml
+      TemplateURL: !Sub https://s3.eu-central-1.amazonaws.com/${CloudformationBucket}/staging/cloudformation.flaskapi.redis.yml
       Parameters:
         ProjectNamePrefix: !Ref AWS::StackName
         TargetVpc: !GetAtt FlaskApiVpc.Outputs.FlaskApiVpcOut
@@ -144,24 +145,24 @@ Resources:
   FlaskApiServicesAthena:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: https://s3.eu-central-1.amazonaws.com/flaskapi-cloudformation-eu-central-1/staging/cloudformation.flaskapi.athena.yml
+      TemplateURL: !Sub https://s3.eu-central-1.amazonaws.com/${CloudformationBucket}/staging/cloudformation.flaskapi.athena.yml
       Parameters:
         ProjectNamePrefix: !Ref AWS::StackName
 #        S3fsVolumeBucket: !Ref RexrayDataLake
 
-  FlaskApiServicesWeb:
-    Type: AWS::CloudFormation::Stack
-    Properties:
-      TemplateURL: https://s3.eu-central-1.amazonaws.com/flaskapi-cloudformation-eu-central-1/staging/cloudformation.flaskapi.web.yml
-      Parameters:
-        ProjectNamePrefix: !Ref AWS::StackName
-        FlaskApiVpcId: !GetAtt FlaskApiVpc.Outputs.FlaskApiVpcOut
-        TargetCluster: !GetAtt FlaskApiEcsCluster.Outputs.FlaskApiEcsClusterOut
-        TargetSubnets: !GetAtt FlaskApiVpc.Outputs.FlaskApiPrivateSubnetsOut
-        TargetAlbArn: !GetAtt FlaskApiAlb.Outputs.FlaskApiAlbNameOut
-        EcrRepoName: !Ref EcrRepoPrefix
-        RedisHostName: !GetAtt FlaskApiServicesRedis.Outputs.RedisHostOut
-        S3fsVolumeBucket: !Ref RexrayBucket
+#  FlaskApiServicesWeb:
+#    Type: AWS::CloudFormation::Stack
+#    Properties:
+#      TemplateURL: !Sub https://s3.eu-central-1.amazonaws.com/${CloudformationBucket}/staging/cloudformation.flaskapi.web.yml
+#      Parameters:
+#        ProjectNamePrefix: !Ref AWS::StackName
+#        FlaskApiVpcId: !GetAtt FlaskApiVpc.Outputs.FlaskApiVpcOut
+#        TargetCluster: !GetAtt FlaskApiEcsCluster.Outputs.FlaskApiEcsClusterOut
+#        TargetSubnets: !GetAtt FlaskApiVpc.Outputs.FlaskApiPrivateSubnetsOut
+#        TargetAlbArn: !GetAtt FlaskApiAlb.Outputs.FlaskApiAlbNameOut
+#        EcrRepoName: !Ref EcrRepoPrefix
+#        RedisHostName: !GetAtt FlaskApiServicesRedis.Outputs.RedisHostOut
+#        S3fsVolumeBucket: !Ref RexrayBucket
 
 
   # ------------------- Templates Bucket----------------------------

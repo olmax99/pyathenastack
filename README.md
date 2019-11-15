@@ -436,6 +436,11 @@ $ ssh -A -i /path/to/<VPN Access Key>.pem ec2-user@<Private IP>
 
 ```
 
+### How to conduct maintenance tasks in the container instances?
+
+Login via the Bastion Host is deprecated. In the AWS console use SSM Sessions for secure ssh sessions: 
+- [https://aws.amazon.com/blogs/aws/new-session-manager/](https://aws.amazon.com/blogs/aws/new-session-manager/). 
+
 ## Where to go from here?
 
 - Secure data in AWS Athena [https://docs.aws.amazon.com/athena/latest/ug/security.html](https://docs.aws.amazon.com/athena/latest/ug/security.html)

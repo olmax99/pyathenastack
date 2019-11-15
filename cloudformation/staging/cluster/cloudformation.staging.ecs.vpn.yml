@@ -31,6 +31,9 @@ Parameters:
     Description: Select the target subnet for ALB deployment
     Type: AWS::EC2::Subnet::Id
 
+  ProjectNamePrefix:
+    Type: String
+
 Mappings:
   EC2AmiRegionMap:
     # TODO: Include all most recent AMZLinux AMIs, Evaluate Community "Openvpn Access Server AMI"
@@ -138,7 +141,7 @@ Resources:
       IamInstanceProfile: !Ref EC2OpenVPNattachPolicyToRole
       Tags:
         - Key: Name
-          Value: flaskapi-openvpn-ec2
+          Value: !Sub ${ProjectNamePrefix}-openvpn-ec2-${AWS::Region}
       UserData:
           # cfn-init runs a configset on the ec2 after having retrieved all necessary template parameters
           # cfn-signal just signals the Cloudformation build to proceed or finish

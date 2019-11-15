@@ -66,7 +66,7 @@ Resources:
       DesiredCapacity: !Ref ClusterMinNodes
       Tags:
         - Key: Name
-          Value: !Sub ${ProjectNamePrefix}-ecs-asg
+          Value: !Sub ${ProjectNamePrefix}-ecs-container-instance-${AWS::Region}
           PropagateAtLaunch: true
     CreationPolicy:
       ResourceSignal:
@@ -141,6 +141,13 @@ Resources:
               epel-release: []
               s3fs-fuse: []
               awslogs: []
+          commands:
+            a_install_ssm_agent:
+              command: yum install -y https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/linux_amd64/amazon-ssm-agent.rpm
+            b_enable_ssm_agent:
+              command: systemctl enable amazon-ssm-agent
+            c_start_ssm_agent:
+              command: systemctl start amazon-ssm-agent
         step3_configure_instance:
           files:
             "/etc/cfn/hooks.d/cfn-auto-reloader.conf":
@@ -226,7 +233,9 @@ Resources:
             a_install_rexray:
               command: !Sub |
                 docker plugin install rexray/s3fs:0.11.4 S3FS_REGION=${AWS::Region} S3FS_OPTIONS="allow_other,iam_role=auto,umask=000" LIBSTORAGE_INTEGRATION_VOLUME_OPERATIONS_MOUNT_ROOTPATH=/ --grant-all-permissions
-            # b_registry_login:
+            # b_docker_restart:
+            #   command: systemctl restart docker && systemctl restart ecs
+            # c_registry_login:
             #   command: $(aws ecr get-login --no-include-email --region ${AWS_REGION})
         step7_upload_log_files:
           files:
@@ -307,6 +316,10 @@ Resources:
                   "ssm:UpdateAssociationStatus",
                   "ssm:UpdateInstanceAssociationStatus",
                   "ssm:UpdateInstanceInformation",
+                  "ssmmessages:CreateControlChannel",
+                  "ssmmessages:CreateDataChannel",
+                  "ssmmessages:OpenControlChannel",
+                  "ssmmessages:OpenDataChannel",
                   "ec2messages:AcknowledgeMessage",
                   "ec2messages:DeleteMessage",
                   "ec2messages:FailMessage",
@@ -352,8 +365,9 @@ Resources:
       Roles:
         - !Ref DefaultClusterRole
 
-  # TODO: What is the full list of use cases of EC2 cluster nodes for SSM?
-  # Example1: SSM Parameter Store for Docker Secrets
+  # What are the use cases of EC2 cluster nodes for SSM?
+  # Example 1: SSM Parameter Store for Docker Secrets (AmazonSSMAutomationRole)
+  # Example 2: Use SSM for secure ssh sessions (AmazonEC2RoleForSSM)
   ClusterSysManagerRole:
     Type: AWS::IAM::Role
     Properties:
@@ -368,6 +382,7 @@ Resources:
           Action: "sts:AssumeRole"
       ManagedPolicyArns:
       - "arn:aws:iam::aws:policy/service-role/AmazonSSMAutomationRole"
+      - "arn:aws:iam::aws:policy/service-role/AmazonEC2RoleForSSM"
       Path: "/"
       Policies:
       - PolicyName: "passrole"

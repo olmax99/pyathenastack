@@ -32,12 +32,12 @@ Resources:
           SourceSecurityGroupId: !Ref FlaskApiAlbSg
         - IpProtocol: -1
           SourceSecurityGroupId: !Ref FlaskApiRedisSg
-        # This is for local access through vpn
-        - IpProtocol: tcp
-          FromPort: '22'
-          ToPort: '22'
-          CidrIp: !Ref VpnBaseCidr
-          Description: VPN local network ingress for maintenance
+        # This is for local access through vpn - DEPRECATED AND REPLACED BY SSM Sessions
+        # - IpProtocol: tcp
+        #   FromPort: '22'
+        #   ToPort: '22'
+        #   CidrIp: !Ref VpnBaseCidr
+        #   Description: VPN local network ingress for maintenance
         # Overlay networks requirements
         # https://docs.docker.com/network/overlay/
         - IpProtocol: tcp
@@ -56,6 +56,7 @@ Resources:
         - Key: Name
           Value: !Sub ${ProjectNamePrefix}-ecs-hosts-sg
 
+  # TODO: Move to SG template
   # NOTE: This Load Balancer will only allow internal connections
   FlaskApiAlbSg:
     Type: AWS::EC2::SecurityGroup
