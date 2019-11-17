@@ -232,11 +232,7 @@ Resources:
           commands:
             a_install_rexray:
               command: !Sub |
-                docker plugin install rexray/s3fs:0.11.4 S3FS_REGION=${AWS::Region} S3FS_OPTIONS="allow_other,iam_role=auto,umask=000" LIBSTORAGE_INTEGRATION_VOLUME_OPERATIONS_MOUNT_ROOTPATH=/ --grant-all-permissions
-            # b_docker_restart:
-            #   command: systemctl restart docker && systemctl restart ecs
-            # c_registry_login:
-            #   command: $(aws ecr get-login --no-include-email --region ${AWS_REGION})
+                docker plugin install rexray/s3fs:0.11.4 S3FS_REGION=${AWS::Region} S3FS_OPTIONS="allow_other,nonempty,use_path_request_style,url=https://s3-${AWS::Region}.amazonaws.com,iam_role=auto,umask=000" LIBSTORAGE_INTEGRATION_VOLUME_OPERATIONS_MOUNT_ROOTPATH=/ --grant-all-permissions
         step7_upload_log_files:
           files:
             "/tmp/upload_script.sh":
@@ -265,7 +261,6 @@ Resources:
 
   # NOTE: This Role will apply to ALL hosts and ALL containers that
   # are running on them.
-
   DefaultClusterRole:
     Type: AWS::IAM::Role
     Properties:

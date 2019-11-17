@@ -35,23 +35,6 @@ Parameters:
 
 Resources:
 
-#  RexrayDataLake:
-#    Type: AWS::S3::Bucket
-#    Description: Data lake for unprocessed workloads from rexray volumes
-#    Properties:
-#      # NOTE: Without BucketName Task Volume mount will fail!!!
-#      BucketName: !Sub ${AWS::StackName}-rexray-data-lake-${AWS::Region}
-#      AccessControl: Private
-#      BucketEncryption:
-#        ServerSideEncryptionConfiguration:
-#          - ServerSideEncryptionByDefault:
-#              SSEAlgorithm: AES256
-#      PublicAccessBlockConfiguration:
-#        BlockPublicAcls: True
-#        BlockPublicPolicy: True
-#        IgnorePublicAcls: True
-#        RestrictPublicBuckets: True
-
   # ------------------ Master Deployment Cluster----------------------------
 
   FlaskApiVpc:
@@ -99,8 +82,6 @@ Resources:
         TargetSg: !GetAtt FlaskApiSG.Outputs.FlaskApiEcsHostsSgName
         EcsKeyPair: !Ref VpnAccessKey
         CfnLogsBucket: !Ref CloudformationBucket
-      # Delay Cluster CREATE_COMPLETE signal for ECS Services - regular time: ~4.5min == delay: ~2min
-      TimeoutInMinutes: 6
 
   # NOTE: Some maintenance on the ECS cluster might require to actively shut down cluster nodes. If there
   # are tasks currently running on the target node, they need to be drained before the node termination.
@@ -150,24 +131,24 @@ Resources:
         ProjectNamePrefix: !Ref AWS::StackName
 #        S3fsVolumeBucket: !Ref RexrayDataLake
 
-#  FlaskApiServicesWeb:
-#    Type: AWS::CloudFormation::Stack
-#    Properties:
-#      TemplateURL: !Sub https://s3.eu-central-1.amazonaws.com/${CloudformationBucket}/staging/cloudformation.flaskapi.web.yml
-#      Parameters:
-#        ProjectNamePrefix: !Ref AWS::StackName
-#        FlaskApiVpcId: !GetAtt FlaskApiVpc.Outputs.FlaskApiVpcOut
-#        TargetCluster: !GetAtt FlaskApiEcsCluster.Outputs.FlaskApiEcsClusterOut
-#        TargetSubnets: !GetAtt FlaskApiVpc.Outputs.FlaskApiPrivateSubnetsOut
-#        TargetAlbArn: !GetAtt FlaskApiAlb.Outputs.FlaskApiAlbNameOut
-#        EcrRepoName: !Ref EcrRepoPrefix
-#        RedisHostName: !GetAtt FlaskApiServicesRedis.Outputs.RedisHostOut
-#        S3fsVolumeBucket: !Ref RexrayBucket
+  FlaskApiServicesWeb:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://s3.eu-central-1.amazonaws.com/${CloudformationBucket}/staging/cloudformation.flaskapi.web.yml
+      Parameters:
+        ProjectNamePrefix: !Ref AWS::StackName
+        FlaskApiVpcId: !GetAtt FlaskApiVpc.Outputs.FlaskApiVpcOut
+        TargetCluster: !GetAtt FlaskApiEcsCluster.Outputs.FlaskApiEcsClusterOut
+        TargetSubnets: !GetAtt FlaskApiVpc.Outputs.FlaskApiPrivateSubnetsOut
+        TargetAlbArn: !GetAtt FlaskApiAlb.Outputs.FlaskApiAlbNameOut
+        EcrRepoName: !Ref EcrRepoPrefix
+        RedisHostName: !GetAtt FlaskApiServicesRedis.Outputs.RedisHostOut
+        S3fsVolumeBucket: !Ref RexrayBucket
 
 
-  # ------------------- Templates Bucket----------------------------
+  # ------------------- Master & Templates Bucket--------------------
 
-  # TODO: Use Ansible for automation outside of cloudformation
+  # TODO: Use Ansible for automation outside of CloudFormation
   # TODO: CloudTrail and Notification
   # Create and upload files manually
   # FlaskApiTemplateBucket:

@@ -237,7 +237,7 @@ Resources:
           # Host: null
           DockerVolumeConfiguration:
             # Needs to exist prior to task creation
-            Autoprovision: true
+            Autoprovision: false
             Driver: 'rexray/s3fs:0.11.4'
             Scope: shared
       NetworkMode: 'bridge'
@@ -295,7 +295,7 @@ Resources:
           # Host: null
           DockerVolumeConfiguration:
             # Automatically create if not exist
-            Autoprovision: true
+            Autoprovision: false
             Driver: 'rexray/s3fs:0.11.4'
             Scope: shared
       NetworkMode: 'bridge'

@@ -1,3 +1,14 @@
+define random_string
+$(shell cat /dev/urandom | tr -dc 'a-z0-9' | fold -w 13 | head -n 1)
+endef
+
+CFN_TEMPLATES_BUCKET := flaskapi-staging-cfn-master-eu-central-1
+VPN_CERTS_BUCKET := flaskapi-staging-openvpn-certs-eu-central-1
+AWS_REGION := eu-central-1
+PROJECT_NAME := flaskapi-staging
+VPN_KEY_NAME := flaskapi-staging-bastion
+NEW_UUID := $(call random_string)
+
 define message1
  Environment variable BASE_IP is required. Not set.
 	Use following command:
@@ -14,7 +25,16 @@ define message2
      
 endef
 
+define message3
+ Create an S3 bucket, which is used as a datalake and shared mount in ECS.
+ Environment variable REXRAY_VOLUME is required. Not set.
+	Use following command:
+        "export REXRAY_VOLUME=${PROJECT_NAME}-rexray-datalake-${NEW_UUID} && \
+        aws s3 mb s3://${PROJECT_NAME}-rexray-datalake-${NEW_UUID}"
 
+ [WARNING]: Wait ~10-15min until the bucket is fully provisioned in AWS. Otherwise
+            docker mounts might fail.
+endef
 
 ifndef BASE_IP
 export message1
@@ -25,9 +45,9 @@ ifndef AWS_DOCKER_REPO
 $(error $(message2))
 endif
 
-define random_string
-$(shell cat /dev/urandom | tr -dc 'a-z0-9' | fold -w 13 | head -n 1)
-endef
+ifndef REXRAY_VOLUME
+$(error $(message3))
+endif
 
 define welcome
 
@@ -43,23 +63,15 @@ define welcome
        |                        `\\
        ;                    /     |
        \                    |     /
-        )           \  __,.--\  \/
+        )           \  __,.--\   /
      .-' \,..._\     \`   .-'  .-'
      `-=``      `:    |\/-\/-\/`
-                   `.__/
+                  `.__/
 endef
 
 
 CURRENT_LOCAL_IP = $(BASE_IP)
 ECR_REPO_PREFIX = $(AWS_DOCKER_REPO)
-
-
-CFN_TEMPLATES_BUCKET := flaskapi-staging-cfn-master-eu-central-1
-VPN_CERTS_BUCKET := flaskapi-staging-openvpn-certs-eu-central-1
-AWS_REGION := eu-central-1
-PROJECT_NAME := flaskapi-staging
-VPN_KEY_NAME := flaskapi-staging-bastion
-NEW_UUID := $(call random_string)
 
 export welcome
 help:
@@ -95,7 +107,7 @@ cluster: templates	## '$NEW_UUID': lowercase alphanumeric only (constraints: doc
 	ParameterKey="VpnAccessKey",ParameterValue="${VPN_KEY_NAME}" \
 	ParameterKey="LocalBaseIp",ParameterValue="${CURRENT_LOCAL_IP}" \
 	ParameterKey="CloudformationBucket",ParameterValue="${CFN_TEMPLATES_BUCKET}" \
-	ParameterKey="RexrayBucket",ParameterValue="${PROJECT_NAME}-rexray-test1" \
+	ParameterKey="RexrayBucket",ParameterValue="${REXRAY_VOLUME}" \
 	--capabilities CAPABILITY_NAMED_IAM
 
 vpn:			## Connect to OpenApi(<LoadBalancerDNS>:5000) and Flower(<LoadBalancerDNS>:5555).
